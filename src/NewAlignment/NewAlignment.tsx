@@ -77,7 +77,7 @@ const pointsToMatrix = (points: point[]) => {
 const computeTransformation = (left: point[], right: point[]) => {
   const leftCentroid = centroid(left);
   const rightCentroid = centroid(right);
-  const translation = { x: rightCentroid.x - leftCentroid.x, y: rightCentroid.y - leftCentroid.y };
+  const translation = { x: leftCentroid.x - rightCentroid.x, y: leftCentroid.y - rightCentroid.y };
   const leftTranslated = translate(left, leftCentroid);
   const rightTranslated = translate(right, rightCentroid);
   const P = pointsToMatrix(leftTranslated);
@@ -91,7 +91,7 @@ const computeTransformation = (left: point[], right: point[]) => {
   const d = Math.sign(determinant(V.mmul(U.transpose())));
   const newDiag = new Matrix([[1, 0], [0, d]]);
   const R = V.mmul(newDiag).mmul(U.transpose());
-  return {R, translation};
+  return { R, translation };
 }
 
 const rotationMatrixToAngle = (R: Matrix) => {
