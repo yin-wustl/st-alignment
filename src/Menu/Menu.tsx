@@ -1,4 +1,5 @@
 import React, { FC } from 'react';
+import { Outlet, Link, useNavigate } from "react-router-dom";
 import { styled, useTheme, Theme, CSSObject } from '@mui/material/styles';
 import Box from '@mui/material/Box';
 import MuiDrawer from '@mui/material/Drawer';
@@ -108,6 +109,9 @@ const Menu: FC<MenuProps> = () => {
     setOpen(false);
   };
 
+  const navigation = useNavigate();
+  const handleNavigation = (path: string) => { navigation(path); }
+
   return (
     <Box sx={{ display: 'flex' }}>
       <CssBaseline />
@@ -139,24 +143,25 @@ const Menu: FC<MenuProps> = () => {
         </DrawerHeader>
         <Divider />
         <List>
-          <ListItem key="home" disablePadding sx={{ display: 'block' }} onClick={e => {setTitle("Home")}}>
-            <ListItemButton sx={{ minHeight: 48, px: 2.5 }}>
+          <ListItem key="home" disablePadding sx={{ display: 'block' }} onClick={e => { setTitle("Home"); handleNavigation("/"); }} >
+            <ListItemButton sx={{ minHeight: 48, px: 2.5 }} >
               <ListItemIcon sx={{ minWidth: 0, mr: 3 }}>
                 <HomeIcon />
               </ListItemIcon>
               <ListItemText primary="Home" />
             </ListItemButton>
           </ListItem>
-          <ListItem key="help" disablePadding sx={{ display: 'block' }} onClick={e => {setTitle("Help")}}>
-            <ListItemButton sx={{ minHeight: 48, px: 2.5 }}>
+          <ListItem key="help" disablePadding sx={{ display: 'block' }} onClick={e => { setTitle("Help"); handleNavigation("/help"); }}>
+            <ListItemButton sx={{ minHeight: 48, px: 2.5 }} >
+              {/* <Link to="/help" /> */}
               <ListItemIcon sx={{ minWidth: 0, mr: 3 }}>
                 <HelpIcon />
               </ListItemIcon>
               <ListItemText primary="Help" />
             </ListItemButton>
           </ListItem>
-          <ListItem key="upload" disablePadding sx={{ display: 'block' }} onClick={e => {setTitle("Upload")}}>
-            <ListItemButton sx={{ minHeight: 48, px: 2.5 }}>
+          <ListItem key="upload" disablePadding sx={{ display: 'block' }} onClick={e => { setTitle("Upload"); handleNavigation("/import"); }}>
+            <ListItemButton sx={{ minHeight: 48, px: 2.5 }} >
               <ListItemIcon sx={{ minWidth: 0, mr: 3 }}>
                 <CloudUploadIcon />
               </ListItemIcon>
@@ -168,15 +173,15 @@ const Menu: FC<MenuProps> = () => {
               <ListItemIcon sx={{ minWidth: 0, mr: 3 }}>
                 <DeleteIcon />
               </ListItemIcon>
-              <ListItemText primary="Clear Images" />
+              <ListItemText primary="Reset" />
             </ListItemButton>
           </ListItem>
         </List>
-
         <Divider />
       </Drawer>
       <Box component="main" sx={{ flexGrow: 1, p: 3 }}>
         <DrawerHeader />
+        <Outlet />
       </Box>
     </Box>
   );

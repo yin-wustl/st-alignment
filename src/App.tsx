@@ -1,18 +1,27 @@
 import React from 'react';
+import ReactDOM from 'react-dom/client';
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 import './App.css';
-import { Grid } from '@mui/material';
 
-import NewAlignment from './NewAlignment/NewAlignment.lazy';
+import Help from './Help/Help.lazy';
+import Home from './Home/Home.lazy';
+import Import from './Import/Import.lazy';
 import Menu from './Menu/Menu.lazy';
+import NewAlignment from './NewAlignment/NewAlignment.lazy';
 
-function App() {
-  return (
-    <Grid container spacing={2}>
-      <Grid item xs={12}>
-        <Menu />
-      </Grid>
-    </Grid>
-  );
-}
+const App = () =>
+(
+  <BrowserRouter>
+    <Routes>
+      <Route path="/" element={<Menu />}>
+        <Route path="/" element={<Home />} />
+        <Route path="/help" element={<Help />} />
+        <Route path="/import" element={<Import />} />
+        <Route path="/new-alignment" element={<NewAlignment />} />
+      </Route>
+    </Routes>
+  </BrowserRouter>
+);
+
 
 export default App;
