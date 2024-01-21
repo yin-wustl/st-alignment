@@ -106,6 +106,15 @@ const valueFormat = (params: GridValueFormatterParams<number>) => {
 
 const NewAlignment: FC<NewAlignmentProps> = () => {
 
+  const [leftPoints, setLeftPoints] = React.useState<point[]>([]);
+  const [rightPoints, setRightPoints] = React.useState<point[]>([]);
+  const [numPoints, setNumPoints] = React.useState<number>(Math.max(leftPoints.length, rightPoints.length));
+  const [rowSelectionModel, setRowSelectionModel] = React.useState<GridRowSelectionModel>([]);
+  const [output, setOutput] = React.useState<output>({ theta: 0, px: 0, py: 0 });
+
+  const [leftScaling, setLeftScaling] = React.useState<{ width: number, height: number }>({ width: 1, height: 1 });
+  const [rightScaling, setRightScaling] = React.useState<{ width: number, height: number }>({ width: 1, height: 1 });
+
   const leftImage = (
     <Box>
       <Paper
@@ -119,7 +128,7 @@ const NewAlignment: FC<NewAlignmentProps> = () => {
           justifyContent: "center",
         }}
       >
-        <img src={img1} style={{ width: "100%", height: "100%", objectFit: "contain" }}
+        <img id="left-image" src={img1} style={{ width: "100%", height: "100%", objectFit: "contain" }}
           onClick={(e) => {
             const widthScale = e.currentTarget.offsetWidth / e.currentTarget.naturalWidth;
             const heightScale = e.currentTarget.offsetHeight / e.currentTarget.naturalHeight;
@@ -129,6 +138,13 @@ const NewAlignment: FC<NewAlignmentProps> = () => {
             setLeftPoints([...leftPoints, { x: x, y: y }]);
             setNumPoints(Math.max(leftPoints.length + 1, rightPoints.length));
           }} />
+
+        {leftPoints.map((p, i) => {
+          return (
+            <div key={i} style={{ position: "absolute", left: `${p.x}px`, top: `${p.y}px`, transform: "translate(-50%, -50%)", width: "10px", height: "10px", borderRadius: "50%", backgroundColor: "red", zIndex: 100 }} />
+          );
+        })}
+
       </Paper>
       <Stack
         direction="row"
@@ -154,7 +170,7 @@ const NewAlignment: FC<NewAlignmentProps> = () => {
           justifyContent: "center",
         }}
       >
-        <img src={img2} style={{ width: "100%", height: "100%", objectFit: "contain" }}
+        <img id="right-image" src={img2} style={{ width: "100%", height: "100%", objectFit: "contain" }}
           onClick={(e) => {
             const widthScale = e.currentTarget.offsetWidth / e.currentTarget.naturalWidth;
             const heightScale = e.currentTarget.offsetHeight / e.currentTarget.naturalHeight;
@@ -175,12 +191,6 @@ const NewAlignment: FC<NewAlignmentProps> = () => {
       </Stack>
     </Box>
   );
-
-  const [leftPoints, setLeftPoints] = React.useState<point[]>([]);
-  const [rightPoints, setRightPoints] = React.useState<point[]>([]);
-  const [numPoints, setNumPoints] = React.useState<number>(Math.max(leftPoints.length, rightPoints.length));
-  const [rowSelectionModel, setRowSelectionModel] = React.useState<GridRowSelectionModel>([]);
-  const [output, setOutput] = React.useState<output>({ theta: 0, px: 0, py: 0 });
 
   const addPoint = (
     <Box
