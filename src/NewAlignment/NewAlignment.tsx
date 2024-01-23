@@ -1,4 +1,4 @@
-import React, { FC } from 'react';
+import React, { FC, useEffect } from 'react';
 import {
   Stack,
   Button,
@@ -19,13 +19,8 @@ import SaveIcon from '@mui/icons-material/Save';
 import { DataGrid, GridColDef, GridValueGetterParams, GridRenderCellParams, GridRowSelectionModel, GridValueFormatterParams } from '@mui/x-data-grid';
 import { Matrix, SVD, determinant } from 'ml-matrix';
 
-import img1 from "../pics/20201201-NMK-F-Fc1U1Z1B1_tissue_hires_image.png";
-import img2 from "../pics/20201201-NMK-F-Fc1U2Z1B1_tissue_hires_image.png";
-import img3 from "../pics/20201201-NMK-F-Fc1U3Z1B1_tissue_hires_image.png";
-import img4 from "../pics/20201201-NMK-F-Fc1U4Z1B1_tissue_hires_image.png";
-import { PointerOptions } from '@testing-library/user-event/dist/utils';
-
-interface NewAlignmentProps { }
+import { AlignmentProps } from './NewAlignment.lazy';
+import { StyledGridOverlay, CustomNoRowsOverlay } from '../Import/Import';
 
 type point = {
   x: number,
@@ -104,16 +99,41 @@ const valueFormat = (params: GridValueFormatterParams<number>) => {
   return params.value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
-const NewAlignment: FC<NewAlignmentProps> = () => {
+const NewAlignment: FC<AlignmentProps> = (AlignmentProps) => {
 
   const [leftPoints, setLeftPoints] = React.useState<point[]>([]);
   const [rightPoints, setRightPoints] = React.useState<point[]>([]);
+  const [leftPointsOnScreen, setLeftPointsOnScreen] = React.useState<point[]>([]);
+  const [rightPointsOnScreen, setRightPointsOnScreen] = React.useState<point[]>([]);
   const [numPoints, setNumPoints] = React.useState<number>(Math.max(leftPoints.length, rightPoints.length));
   const [rowSelectionModel, setRowSelectionModel] = React.useState<GridRowSelectionModel>([]);
   const [output, setOutput] = React.useState<output>({ theta: 0, px: 0, py: 0 });
 
   const [leftScaling, setLeftScaling] = React.useState<{ width: number, height: number }>({ width: 1, height: 1 });
   const [rightScaling, setRightScaling] = React.useState<{ width: number, height: number }>({ width: 1, height: 1 });
+
+  const leftImageRef = AlignmentProps.slices[AlignmentProps.index].image;
+  const rightImageRef = AlignmentProps.slices[AlignmentProps.index + 1].image;
+
+  const handleLeftImageScale = (event: React.SyntheticEvent<HTMLImageElement, Event>) => {
+    const img = event.currentTarget;
+    const rect = img.getBoundingClientRect();
+    const widthScale = img.clientWidth / img.naturalWidth;
+    const heightScale = img.clientHeight / img.naturalHeight;
+    setLeftScaling({ width: widthScale, height: heightScale });
+    const newLeftPointsOnScreen = leftPoints.map((p) => {
+      return { x: p.x * widthScale + rect.left, y: p.y * heightScale + rect.top };
+    });
+    setLeftPointsOnScreen(newLeftPointsOnScreen);
+    console.log("left points on screen", newLeftPointsOnScreen);
+  };
+
+  const handleRightImageScale = (event: React.SyntheticEvent<HTMLImageElement, Event>) => {
+    const img = event.currentTarget;
+    const widthScale = img.clientWidth / img.naturalWidth;
+    const heightScale = img.clientHeight / img.naturalHeight;
+    setRightScaling({ width: widthScale, height: heightScale });
+  };
 
   const leftImage = (
     <Box>
@@ -128,18 +148,19 @@ const NewAlignment: FC<NewAlignmentProps> = () => {
           justifyContent: "center",
         }}
       >
-        <img id="left-image" src={img1} style={{ width: "100%", height: "100%", objectFit: "contain" }}
+        {leftImageRef && (<img id="left-image" src={leftImageRef.src} style={{ width: "100%", height: "100%", objectFit: "contain" }}
+          onLoad={handleLeftImageScale}
+          onResize={handleLeftImageScale}
           onClick={(e) => {
-            const widthScale = e.currentTarget.offsetWidth / e.currentTarget.naturalWidth;
-            const heightScale = e.currentTarget.offsetHeight / e.currentTarget.naturalHeight;
             const rect = e.currentTarget.getBoundingClientRect();
-            const x = (e.clientX - rect.left) / widthScale;
-            const y = (e.clientY - rect.top) / heightScale;
+            const x = (e.clientX - rect.left) / leftScaling.width;
+            const y = (e.clientY - rect.top) / leftScaling.height;
             setLeftPoints([...leftPoints, { x: x, y: y }]);
+            setLeftPointsOnScreen([...leftPointsOnScreen, { x: e.clientX, y: e.clientY }]);
             setNumPoints(Math.max(leftPoints.length + 1, rightPoints.length));
-          }} />
+          }} />)}
 
-        {leftPoints.map((p, i) => {
+        {leftPointsOnScreen.map((p, i) => {
           return (
             <div key={i} style={{ position: "absolute", left: `${p.x}px`, top: `${p.y}px`, transform: "translate(-50%, -50%)", width: "10px", height: "10px", borderRadius: "50%", backgroundColor: "red", zIndex: 100 }} />
           );
@@ -152,7 +173,7 @@ const NewAlignment: FC<NewAlignmentProps> = () => {
         justifyContent="center"
         alignItems="center"
       >
-        <Typography variant="h6">Left</Typography>
+        <Typography variant="h6">{AlignmentProps.slices[AlignmentProps.index].name}</Typography>
       </Stack>
     </Box>
   );
@@ -170,16 +191,16 @@ const NewAlignment: FC<NewAlignmentProps> = () => {
           justifyContent: "center",
         }}
       >
-        <img id="right-image" src={img2} style={{ width: "100%", height: "100%", objectFit: "contain" }}
+        {rightImageRef && (<img id="left-image" src={rightImageRef.src} style={{ width: "100%", height: "100%", objectFit: "contain" }}
           onClick={(e) => {
             const widthScale = e.currentTarget.offsetWidth / e.currentTarget.naturalWidth;
             const heightScale = e.currentTarget.offsetHeight / e.currentTarget.naturalHeight;
             const rect = e.currentTarget.getBoundingClientRect();
             const x = (e.clientX - rect.left) / widthScale;
             const y = (e.clientY - rect.top) / heightScale;
-            setRightPoints([...rightPoints, { x: x, y: y }]);
-            setNumPoints(Math.max(leftPoints.length, rightPoints.length + 1));
-          }} />
+            setLeftPoints([...leftPoints, { x: x, y: y }]);
+            setNumPoints(Math.max(leftPoints.length + 1, rightPoints.length));
+          }} />)}
       </Paper>
       <Stack
         direction="row"
@@ -187,7 +208,7 @@ const NewAlignment: FC<NewAlignmentProps> = () => {
         justifyContent="center"
         alignItems="center"
       >
-        <Typography variant="h6">Right</Typography>
+        <Typography variant="h6">{AlignmentProps.slices[AlignmentProps.index + 1].name}</Typography>
       </Stack>
     </Box>
   );
@@ -211,10 +232,10 @@ const NewAlignment: FC<NewAlignmentProps> = () => {
       <Button fullWidth variant="contained" color="primary" size="small" style={{ textTransform: 'none', whiteSpace: 'nowrap' }} startIcon={<RemoveIcon />}
         onClick={e => {
           const newLeftPoints = leftPoints.filter((p, i) => {
-            return !rowSelectionModel.includes(i);
+            return !rowSelectionModel.includes(i + 1);
           });
           const newRightPoints = rightPoints.filter((p, i) => {
-            return !rowSelectionModel.includes(i);
+            return !rowSelectionModel.includes(i + 1);
           });
           setLeftPoints(newLeftPoints);
           setRightPoints(newRightPoints);
@@ -333,6 +354,9 @@ const NewAlignment: FC<NewAlignmentProps> = () => {
               checkboxSelection
               rowSelectionModel={rowSelectionModel}
               onRowSelectionModelChange={(newSelection) => { setRowSelectionModel(newSelection); }}
+              slots={{ noRowsOverlay: CustomNoRowsOverlay }}
+              autoHeight
+              sx={{ '--DataGrid-overlayHeight': '300px' }}
             />
           </Grid>
         </Grid>

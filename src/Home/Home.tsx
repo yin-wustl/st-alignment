@@ -5,7 +5,7 @@ interface HomeProps {}
 
 const Home: FC<HomeProps> = () => (
   <div>
-    Home Component
+    Eh?
   </div>
 );
 

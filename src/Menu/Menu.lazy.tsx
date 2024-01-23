@@ -1,12 +1,16 @@
 import React, { lazy, Suspense } from 'react';
-import { Outlet, Link } from "react-router-dom";
+import { Slice } from '../App';
+
+export interface MenuProps {
+  slices: Slice[];
+  setSlices: (slices: Slice[]) => void;
+}
 
 const LazyMenu = lazy(() => import('./Menu'));
 
-const Menu = (props: JSX.IntrinsicAttributes & { children?: React.ReactNode; }) => (
+const Menu = (props: MenuProps) => (
   <Suspense fallback={null}>
     <LazyMenu {...props} />
-    {/* <Outlet /> */}
   </Suspense>
 );
 

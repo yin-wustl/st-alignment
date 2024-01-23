@@ -1,12 +1,17 @@
 import React, { lazy, Suspense } from 'react';
-import { Outlet } from 'react-router-dom';
+import { Slice } from '../App';
+
+export interface AlignmentProps {
+  index: number;
+  slices: Slice[];
+  setSlices: (slices: Slice[]) => void;
+}
 
 const LazyNewAlignment = lazy(() => import('./NewAlignment'));
 
-const NewAlignment = (props: JSX.IntrinsicAttributes & { children?: React.ReactNode; }) => (
+const NewAlignment = (props: AlignmentProps) => (
   <Suspense fallback={null}>
     <LazyNewAlignment {...props} />
-    <Outlet />
   </Suspense>
 );
 

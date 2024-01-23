@@ -21,9 +21,9 @@ import HomeIcon from '@mui/icons-material/Home';
 import HelpIcon from '@mui/icons-material/Help';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import DeleteIcon from '@mui/icons-material/Delete';
+import AdsClickIcon from '@mui/icons-material/AdsClick';
 
-
-interface MenuProps { }
+import { MenuProps } from './Menu.lazy';
 
 const drawerWidth = 240;
 
@@ -96,7 +96,7 @@ const Drawer = styled(MuiDrawer, { shouldForwardProp: (prop) => prop !== 'open' 
   }),
 );
 
-const Menu: FC<MenuProps> = () => {
+const Menu: FC<MenuProps> = (MenuProps) => {
   const theme = useTheme();
   const [open, setOpen] = React.useState(false);
   const [title, setTitle] = React.useState('Home');
@@ -178,6 +178,31 @@ const Menu: FC<MenuProps> = () => {
           </ListItem>
         </List>
         <Divider />
+        {/* {MenuProps.slices.map((s, i) => (
+          <ListItem key={s.name} disablePadding sx={{ display: 'block' }} onClick={e => { setTitle(s.name); handleNavigation("/new-alignment"); }}>
+            <ListItemButton sx={{ minHeight: 48, px: 2.5 }} >
+              <ListItemIcon sx={{ minWidth: 0, mr: 3 }}>
+                <img src={s.image?.src} width={32} height={32} />
+              </ListItemIcon>
+              <ListItemText primary={s.name} />
+            </ListItemButton>
+          </ListItem>
+        ))} */}
+        <Divider />
+        {[...new Array(Math.max(MenuProps.slices.length - 1, 0))].map((s, i) => {
+          const title = "Alignment " + String(i + 1) + " and " + String(i + 2);
+          const longTitle = "Alignment " + MenuProps.slices[i].name + " and " + MenuProps.slices[i + 1].name;
+          return (
+            <ListItem key={i} disablePadding sx={{ display: 'block' }} onClick={e => { setTitle(longTitle); handleNavigation(`/alignment-${i + 1}-and-${i + 2}`); }}>
+              <ListItemButton sx={{ minHeight: 48, px: 2.5 }} >
+                <ListItemIcon sx={{ minWidth: 0, mr: 3 }}>
+                  <AdsClickIcon />
+                </ListItemIcon>
+                <ListItemText primary={title} />
+              </ListItemButton>
+            </ListItem>
+          );
+        })}
       </Drawer>
       <Box component="main" sx={{ flexGrow: 1, p: 3 }}>
         <DrawerHeader />

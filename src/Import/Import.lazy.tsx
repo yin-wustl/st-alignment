@@ -1,12 +1,16 @@
 import React, { lazy, Suspense } from 'react';
-import { Outlet } from 'react-router-dom';
+import { Slice } from '../App';
+
+export interface ImportProps {
+  slices: Slice[];
+  setSlices: (slices: Slice[]) => void;
+}
 
 const LazyImport = lazy(() => import('./Import'));
 
-const Import = (props: JSX.IntrinsicAttributes & { children?: React.ReactNode; }) => (
+const Import = (props: ImportProps ) => (
   <Suspense fallback={null}>
     <LazyImport {...props} />
-    <Outlet />
   </Suspense>
 );
 

@@ -5,7 +5,7 @@ interface HelpProps {}
 
 const Help: FC<HelpProps> = () => (
   <div>
-    Help Component
+    Help is on the way...
   </div>
 );
 
