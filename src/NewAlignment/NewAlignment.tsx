@@ -10,17 +10,22 @@ import {
   Typography,
   Box,
   Paper,
+  ToggleButtonGroup,
+  ToggleButton,
 } from "@mui/material";
 import AddIcon from '@mui/icons-material/Add';
 import RemoveIcon from '@mui/icons-material/Remove';
 import CalculateIcon from '@mui/icons-material/Calculate';
 import DeleteIcon from '@mui/icons-material/Delete';
 import SaveIcon from '@mui/icons-material/Save';
+import OpenWithIcon from '@mui/icons-material/OpenWith';
+import DoNotTouchIcon from '@mui/icons-material/DoNotTouch';
 import { DataGrid, GridColDef, GridValueGetterParams, GridRenderCellParams, GridRowSelectionModel, GridValueFormatterParams } from '@mui/x-data-grid';
 import { Matrix, SVD, determinant } from 'ml-matrix';
 
 import { AlignmentProps } from './NewAlignment.lazy';
 import { StyledGridOverlay, CustomNoRowsOverlay } from '../Import/Import';
+
 
 type point = {
   x: number,
@@ -99,6 +104,14 @@ const valueFormat = (params: GridValueFormatterParams<number>) => {
   return params.value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
+const generateDistinctColor = (colorSequence: string[]) => {
+  let newColor;
+  do {
+    newColor = '#' + Math.floor(Math.random() * 16777215).toString(16);
+  } while (colorSequence.includes(newColor));
+  return newColor;
+}
+
 const NewAlignment: FC<AlignmentProps> = (AlignmentProps) => {
 
   const [leftPoints, setLeftPoints] = React.useState<point[]>([]);
@@ -108,12 +121,16 @@ const NewAlignment: FC<AlignmentProps> = (AlignmentProps) => {
   const [numPoints, setNumPoints] = React.useState<number>(Math.max(leftPoints.length, rightPoints.length));
   const [rowSelectionModel, setRowSelectionModel] = React.useState<GridRowSelectionModel>([]);
   const [output, setOutput] = React.useState<output>({ theta: 0, px: 0, py: 0 });
+  const [colorSequence, setColorSequence] = React.useState<string[]>([]);
 
   const [leftScaling, setLeftScaling] = React.useState<{ width: number, height: number }>({ width: 1, height: 1 });
   const [rightScaling, setRightScaling] = React.useState<{ width: number, height: number }>({ width: 1, height: 1 });
 
   const leftImageRef = AlignmentProps.slices[AlignmentProps.index].image;
   const rightImageRef = AlignmentProps.slices[AlignmentProps.index + 1].image;
+
+  const [mode, setMode] = React.useState<string | null>('add');
+  const handleModeChange = (event: React.MouseEvent<HTMLElement>, newMode: string | null) => { setMode(newMode); };
 
   const handleLeftImageScale = (event: React.SyntheticEvent<HTMLImageElement, Event>) => {
     const img = event.currentTarget;
@@ -125,7 +142,6 @@ const NewAlignment: FC<AlignmentProps> = (AlignmentProps) => {
       return { x: p.x * widthScale + rect.left, y: p.y * heightScale + rect.top };
     });
     setLeftPointsOnScreen(newLeftPointsOnScreen);
-    console.log("left points on screen", newLeftPointsOnScreen);
   };
 
   const handleRightImageScale = (event: React.SyntheticEvent<HTMLImageElement, Event>) => {
@@ -152,6 +168,7 @@ const NewAlignment: FC<AlignmentProps> = (AlignmentProps) => {
           onLoad={handleLeftImageScale}
           onResize={handleLeftImageScale}
           onClick={(e) => {
+            setColorSequence(prevColorSequence => [...prevColorSequence, generateDistinctColor(prevColorSequence)]);
             const rect = e.currentTarget.getBoundingClientRect();
             const x = (e.clientX - rect.left) / leftScaling.width;
             const y = (e.clientY - rect.top) / leftScaling.height;
@@ -162,7 +179,7 @@ const NewAlignment: FC<AlignmentProps> = (AlignmentProps) => {
 
         {leftPointsOnScreen.map((p, i) => {
           return (
-            <div key={i} style={{ position: "absolute", left: `${p.x}px`, top: `${p.y}px`, transform: "translate(-50%, -50%)", width: "10px", height: "10px", borderRadius: "50%", backgroundColor: "red", zIndex: 100 }} />
+            <div key={i} style={{ position: "absolute", left: `${p.x}px`, top: `${p.y}px`, transform: "translate(-50%, -50%)", width: "10px", height: "10px", borderRadius: "50%", backgroundColor: `${colorSequence[i]}`, zIndex: 100 }} />
           );
         })}
 
@@ -192,15 +209,23 @@ const NewAlignment: FC<AlignmentProps> = (AlignmentProps) => {
         }}
       >
         {rightImageRef && (<img id="left-image" src={rightImageRef.src} style={{ width: "100%", height: "100%", objectFit: "contain" }}
+          onLoad={handleRightImageScale}
+          onResize={handleRightImageScale}
           onClick={(e) => {
-            const widthScale = e.currentTarget.offsetWidth / e.currentTarget.naturalWidth;
-            const heightScale = e.currentTarget.offsetHeight / e.currentTarget.naturalHeight;
+            setColorSequence(prevColorSequence => [...prevColorSequence, generateDistinctColor(prevColorSequence)]);
             const rect = e.currentTarget.getBoundingClientRect();
-            const x = (e.clientX - rect.left) / widthScale;
-            const y = (e.clientY - rect.top) / heightScale;
-            setLeftPoints([...leftPoints, { x: x, y: y }]);
-            setNumPoints(Math.max(leftPoints.length + 1, rightPoints.length));
+            const x = (e.clientX - rect.left) / leftScaling.width;
+            const y = (e.clientY - rect.top) / leftScaling.height;
+            setRightPoints([...rightPoints, { x: x, y: y }]);
+            setRightPointsOnScreen([...rightPointsOnScreen, { x: e.clientX, y: e.clientY }]);
+            setNumPoints(Math.max(leftPoints.length, rightPoints.length + 1));
           }} />)}
+
+        {rightPointsOnScreen.map((p, i) => {
+          return (
+            <div key={i} style={{ position: "absolute", left: `${p.x}px`, top: `${p.y}px`, transform: "translate(-50%, -50%)", width: "10px", height: "10px", borderRadius: "50%", backgroundColor: `${colorSequence[i]}`, zIndex: 100 }} />
+          );
+        })}
       </Paper>
       <Stack
         direction="row"
@@ -237,8 +262,16 @@ const NewAlignment: FC<AlignmentProps> = (AlignmentProps) => {
           const newRightPoints = rightPoints.filter((p, i) => {
             return !rowSelectionModel.includes(i + 1);
           });
+          const newLeftPointsOnScreen = leftPointsOnScreen.filter((p, i) => {
+            return !rowSelectionModel.includes(i + 1);
+          });
+          const newRightPointsOnScreen = rightPointsOnScreen.filter((p, i) => {
+            return !rowSelectionModel.includes(i + 1);
+          });
           setLeftPoints(newLeftPoints);
           setRightPoints(newRightPoints);
+          setLeftPointsOnScreen(newLeftPointsOnScreen);
+          setRightPointsOnScreen(newRightPointsOnScreen);
           setNumPoints(Math.max(newLeftPoints.length, newRightPoints.length));
           setRowSelectionModel([]);
         }}>Remove Selected</Button>
@@ -255,6 +288,8 @@ const NewAlignment: FC<AlignmentProps> = (AlignmentProps) => {
         onClick={e => {
           setLeftPoints([]);
           setRightPoints([]);
+          setLeftPointsOnScreen([]);
+          setRightPointsOnScreen([]);
           setNumPoints(0);
           setRowSelectionModel([]);
         }}>Remove All</Button>
@@ -291,7 +326,7 @@ const NewAlignment: FC<AlignmentProps> = (AlignmentProps) => {
       }}>
       <Button fullWidth variant="contained" color="primary" size="small" style={{ textTransform: 'none', whiteSpace: 'nowrap' }} startIcon={<SaveIcon />}
         onClick={(e) => {
-          const filename = "alignment.json";
+          const filename = `alignment-${AlignmentProps.index + 1}-and-${AlignmentProps.index + 2}.json`;
           const json = JSON.stringify(output);
           const blob = new Blob([json], { type: "application/json" });
           const href = URL.createObjectURL(blob);
@@ -300,8 +335,40 @@ const NewAlignment: FC<AlignmentProps> = (AlignmentProps) => {
     </Box>
   )
 
+  const modeSlection = (
+    <ToggleButtonGroup
+      value={mode}
+      exclusive
+      onChange={handleModeChange}
+      aria-label="text alignment"
+      size='small'
+    >
+      <ToggleButton value="add">
+        <AddIcon />
+      </ToggleButton>
+      <ToggleButton value="remove">
+        <RemoveIcon />
+      </ToggleButton>
+      <ToggleButton value="move">
+        <OpenWithIcon />
+      </ToggleButton>
+      <ToggleButton value="off">
+        <DoNotTouchIcon />
+      </ToggleButton>
+    </ToggleButtonGroup >
+  )
+
   const columns: GridColDef[] = [
     { field: 'id', headerName: '#', width: 70 },
+    {
+      field: 'Color', headerName: 'Color', width: 130, renderCell: (params: GridRenderCellParams) => {
+        return (
+          <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100%" }}>
+            <div style={{ width: "20px", height: "20px", borderRadius: "50%", backgroundColor: `${colorSequence[params.row.id - 1]}` }} />
+          </div>
+        )
+      }
+    },
     { field: 'Xleft', headerName: 'X Left', width: 130, valueFormatter: valueFormat },
     { field: 'Yleft', headerName: 'Y Left', width: 130, valueFormatter: valueFormat },
     { field: 'Xright', headerName: 'X Right', width: 130, valueFormatter: valueFormat },
@@ -336,6 +403,8 @@ const NewAlignment: FC<AlignmentProps> = (AlignmentProps) => {
               {/* {addPoint} */}
               {removeSelectedPoints}
               {removeAllPoints}
+              <div style={{ width: "100%", flex: "1 1 auto" }} />
+              {modeSlection}
               <div style={{ width: "100%", flex: "1 1 auto" }} />
               {compute}
               {save}
