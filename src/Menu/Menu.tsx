@@ -168,14 +168,6 @@ const Menu: FC<MenuProps> = (MenuProps) => {
               <ListItemText primary="Load Images" />
             </ListItemButton>
           </ListItem>
-          <ListItem key="clear" disablePadding sx={{ display: 'block' }} >
-            <ListItemButton sx={{ minHeight: 48, px: 2.5 }} >
-              <ListItemIcon sx={{ minWidth: 0, mr: 3 }}>
-                <DeleteIcon />
-              </ListItemIcon>
-              <ListItemText primary="Reset" />
-            </ListItemButton>
-          </ListItem>
         </List>
         <Divider />
         {/* {MenuProps.slices.map((s, i) => (

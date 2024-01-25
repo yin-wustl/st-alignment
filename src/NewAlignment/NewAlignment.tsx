@@ -125,7 +125,6 @@ const NewAlignment: FC<AlignmentProps> = (AlignmentProps) => {
   const [pointPairs, setPointPairs] = React.useState<pointPair[]>([]);
   const [leftIndex, setLeftIndex] = React.useState<number>(0);
   const [rightIndex, setRightIndex] = React.useState<number>(0);
-  const [colorSequence, setColorSequence] = React.useState<string[]>([]);
 
   const [leftPoints, setLeftPoints] = React.useState<point[]>([]);
   const [rightPoints, setRightPoints] = React.useState<point[]>([]);
@@ -184,19 +183,14 @@ const NewAlignment: FC<AlignmentProps> = (AlignmentProps) => {
           onLoad={handleLeftImageScale}
           onResize={handleLeftImageScale}
           onClick={(e) => {
-            // setColorSequence(prevColorSequence => [...prevColorSequence, generateDistinctColor(prevColorSequence)]);
             const rect = e.currentTarget.getBoundingClientRect();
             const x = (e.clientX - rect.left) / leftScaling.width;
             const y = (e.clientY - rect.top) / leftScaling.height;
-            // setLeftPoints([...leftPoints, { x: x, y: y }]);
-            // setLeftPointsOnScreen([...leftPointsOnScreen, { x: e.clientX, y: e.clientY }]);
-            // setNumPoints(Math.max(leftPoints.length + 1, rightPoints.length));
             if (mode === 'add') {
               if (leftIndex >= rightIndex) {
-                const newColor = generateDistinctColor(colorSequence);
+                const newColor = generateDistinctColor(pointPairs.map((p) => { return p.color; }));
                 const newPointPair = { left: { x: x, y: y }, leftOnScreen: { x: e.clientX, y: e.clientY }, color: newColor };
                 setPointPairs([...pointPairs, newPointPair]);
-                setColorSequence([...colorSequence, newColor]);
                 setLeftIndex(leftIndex + 1);
               } else {
                 const newPointPair = pointPairs[leftIndex];
@@ -214,7 +208,7 @@ const NewAlignment: FC<AlignmentProps> = (AlignmentProps) => {
 
         {pointPairs.map((p, i) => {
           return (
-            <div key={i} style={{ position: "absolute", left: `${p.leftOnScreen?.x}px`, top: `${p.leftOnScreen?.y}px`, transform: "translate(-50%, -50%)", width: "10px", height: "10px", borderRadius: "50%", backgroundColor: `${colorSequence[i]}`, zIndex: 100 }} />
+            <div key={i} style={{ position: "absolute", left: `${p.leftOnScreen?.x}px`, top: `${p.leftOnScreen?.y}px`, transform: "translate(-50%, -50%)", width: "10px", height: "10px", borderRadius: "50%", backgroundColor: `${pointPairs[i].color}`, zIndex: 100 }} />
           );
         })}
 
@@ -247,19 +241,14 @@ const NewAlignment: FC<AlignmentProps> = (AlignmentProps) => {
           onLoad={handleRightImageScale}
           onResize={handleRightImageScale}
           onClick={(e) => {
-            // setColorSequence(prevColorSequence => [...prevColorSequence, generateDistinctColor(prevColorSequence)]);
             const rect = e.currentTarget.getBoundingClientRect();
-            const x = (e.clientX - rect.left) / leftScaling.width;
-            const y = (e.clientY - rect.top) / leftScaling.height;
-            // setRightPoints([...rightPoints, { x: x, y: y }]);
-            // setRightPointsOnScreen([...rightPointsOnScreen, { x: e.clientX, y: e.clientY }]);
-            // setNumPoints(Math.max(leftPoints.length, rightPoints.length + 1));
+            const x = (e.clientX - rect.left) / rightScaling.width;
+            const y = (e.clientY - rect.top) / rightScaling.height;
             if (mode === 'add') {
               if (leftIndex <= rightIndex) {
-                const newColor = generateDistinctColor(colorSequence);
+                const newColor = generateDistinctColor(pointPairs.map((p) => { return p.color; }));
                 const newPointPair = { right: { x: x, y: y }, rightOnScreen: { x: e.clientX, y: e.clientY }, color: newColor };
                 setPointPairs([...pointPairs, newPointPair]);
-                setColorSequence([...colorSequence, newColor]);
                 setRightIndex(rightIndex + 1);
               } else {
                 const newPointPair = pointPairs[rightIndex];
@@ -277,7 +266,7 @@ const NewAlignment: FC<AlignmentProps> = (AlignmentProps) => {
 
         {pointPairs.map((p, i) => {
           return (
-            <div key={i} style={{ position: "absolute", left: `${p.rightOnScreen?.x}px`, top: `${p.rightOnScreen?.y}px`, transform: "translate(-50%, -50%)", width: "10px", height: "10px", borderRadius: "50%", backgroundColor: `${colorSequence[i]}`, zIndex: 100 }} />
+            <div key={i} style={{ position: "absolute", left: `${p.rightOnScreen?.x}px`, top: `${p.rightOnScreen?.y}px`, transform: "translate(-50%, -50%)", width: "10px", height: "10px", borderRadius: "50%", backgroundColor: `${pointPairs[i].color}`, zIndex: 100 }} />
           );
         })}
       </Paper>
@@ -332,7 +321,7 @@ const NewAlignment: FC<AlignmentProps> = (AlignmentProps) => {
       }}>
       <Button fullWidth variant="contained" color="primary" size="small" style={{ textTransform: 'none', whiteSpace: 'nowrap' }} startIcon={<CalculateIcon />}
         onClick={(e) => {
-          if (leftPoints.length !== rightPoints.length) {
+          if (leftIndex !== rightIndex) {
             alert("Must have same number of points on both images");
             return;
           }
@@ -391,7 +380,7 @@ const NewAlignment: FC<AlignmentProps> = (AlignmentProps) => {
       field: 'Color', headerName: 'Color', width: 130, renderCell: (params: GridRenderCellParams) => {
         return (
           <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100%" }}>
-            <div style={{ width: "20px", height: "20px", borderRadius: "50%", backgroundColor: `${colorSequence[params.row.id - 1]}` }} />
+            <div style={{ width: "20px", height: "20px", borderRadius: "50%", backgroundColor: `${pointPairs[params.row.id - 1].color}` }} />
           </div>
         )
       }
@@ -427,7 +416,6 @@ const NewAlignment: FC<AlignmentProps> = (AlignmentProps) => {
         <Grid container spacing={2}>
           <Grid item container xs={12}>
             <Stack spacing={1} direction="row" style={{ padding: "15px", width: "100%", flex: "1 1 auto" }}>
-              {/* {addPoint} */}
               {removeSelectedPoints}
               {removeAllPoints}
               <div style={{ width: "100%", flex: "1 1 auto" }} />
