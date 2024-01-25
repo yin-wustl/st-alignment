@@ -32,6 +32,14 @@ type point = {
   y: number,
 };
 
+type pointPair = {
+  left?: point,
+  right?: point,
+  leftOnScreen?: point,
+  rightOnScreen?: point,
+  color: string,
+};
+
 type output = {
   theta: number,
   px: number,
@@ -114,6 +122,11 @@ const generateDistinctColor = (colorSequence: string[]) => {
 
 const NewAlignment: FC<AlignmentProps> = (AlignmentProps) => {
 
+  const [pointPairs, setPointPairs] = React.useState<pointPair[]>([]);
+  const [leftIndex, setLeftIndex] = React.useState<number>(0);
+  const [rightIndex, setRightIndex] = React.useState<number>(0);
+  const [colorSequence, setColorSequence] = React.useState<string[]>([]);
+
   const [leftPoints, setLeftPoints] = React.useState<point[]>([]);
   const [rightPoints, setRightPoints] = React.useState<point[]>([]);
   const [leftPointsOnScreen, setLeftPointsOnScreen] = React.useState<point[]>([]);
@@ -121,7 +134,6 @@ const NewAlignment: FC<AlignmentProps> = (AlignmentProps) => {
   const [numPoints, setNumPoints] = React.useState<number>(Math.max(leftPoints.length, rightPoints.length));
   const [rowSelectionModel, setRowSelectionModel] = React.useState<GridRowSelectionModel>([]);
   const [output, setOutput] = React.useState<output>({ theta: 0, px: 0, py: 0 });
-  const [colorSequence, setColorSequence] = React.useState<string[]>([]);
 
   const [leftScaling, setLeftScaling] = React.useState<{ width: number, height: number }>({ width: 1, height: 1 });
   const [rightScaling, setRightScaling] = React.useState<{ width: number, height: number }>({ width: 1, height: 1 });
@@ -131,6 +143,10 @@ const NewAlignment: FC<AlignmentProps> = (AlignmentProps) => {
 
   const [mode, setMode] = React.useState<string | null>('add');
   const handleModeChange = (event: React.MouseEvent<HTMLElement>, newMode: string | null) => { setMode(newMode); };
+
+  const handleClick = (event: React.MouseEvent<HTMLElement>) => {
+
+  };
 
   const handleLeftImageScale = (event: React.SyntheticEvent<HTMLImageElement, Event>) => {
     const img = event.currentTarget;
@@ -168,18 +184,37 @@ const NewAlignment: FC<AlignmentProps> = (AlignmentProps) => {
           onLoad={handleLeftImageScale}
           onResize={handleLeftImageScale}
           onClick={(e) => {
-            setColorSequence(prevColorSequence => [...prevColorSequence, generateDistinctColor(prevColorSequence)]);
+            // setColorSequence(prevColorSequence => [...prevColorSequence, generateDistinctColor(prevColorSequence)]);
             const rect = e.currentTarget.getBoundingClientRect();
             const x = (e.clientX - rect.left) / leftScaling.width;
             const y = (e.clientY - rect.top) / leftScaling.height;
-            setLeftPoints([...leftPoints, { x: x, y: y }]);
-            setLeftPointsOnScreen([...leftPointsOnScreen, { x: e.clientX, y: e.clientY }]);
-            setNumPoints(Math.max(leftPoints.length + 1, rightPoints.length));
+            // setLeftPoints([...leftPoints, { x: x, y: y }]);
+            // setLeftPointsOnScreen([...leftPointsOnScreen, { x: e.clientX, y: e.clientY }]);
+            // setNumPoints(Math.max(leftPoints.length + 1, rightPoints.length));
+            if (mode === 'add') {
+              if (leftIndex >= rightIndex) {
+                const newColor = generateDistinctColor(colorSequence);
+                const newPointPair = { left: { x: x, y: y }, leftOnScreen: { x: e.clientX, y: e.clientY }, color: newColor };
+                setPointPairs([...pointPairs, newPointPair]);
+                setColorSequence([...colorSequence, newColor]);
+                setLeftIndex(leftIndex + 1);
+              } else {
+                const newPointPair = pointPairs[leftIndex];
+                newPointPair.left = { x: x, y: y };
+                newPointPair.leftOnScreen = { x: e.clientX, y: e.clientY };
+                setPointPairs([...pointPairs]);
+                setLeftIndex(leftIndex + 1);
+              }
+            } else if (mode === 'remove') {
+              
+            } else if (mode === 'move') {
+              
+            }
           }} />)}
 
-        {leftPointsOnScreen.map((p, i) => {
+        {pointPairs.map((p, i) => {
           return (
-            <div key={i} style={{ position: "absolute", left: `${p.x}px`, top: `${p.y}px`, transform: "translate(-50%, -50%)", width: "10px", height: "10px", borderRadius: "50%", backgroundColor: `${colorSequence[i]}`, zIndex: 100 }} />
+            <div key={i} style={{ position: "absolute", left: `${p.leftOnScreen?.x}px`, top: `${p.leftOnScreen?.y}px`, transform: "translate(-50%, -50%)", width: "10px", height: "10px", borderRadius: "50%", backgroundColor: `${colorSequence[i]}`, zIndex: 100 }} />
           );
         })}
 
@@ -212,18 +247,37 @@ const NewAlignment: FC<AlignmentProps> = (AlignmentProps) => {
           onLoad={handleRightImageScale}
           onResize={handleRightImageScale}
           onClick={(e) => {
-            setColorSequence(prevColorSequence => [...prevColorSequence, generateDistinctColor(prevColorSequence)]);
+            // setColorSequence(prevColorSequence => [...prevColorSequence, generateDistinctColor(prevColorSequence)]);
             const rect = e.currentTarget.getBoundingClientRect();
             const x = (e.clientX - rect.left) / leftScaling.width;
             const y = (e.clientY - rect.top) / leftScaling.height;
-            setRightPoints([...rightPoints, { x: x, y: y }]);
-            setRightPointsOnScreen([...rightPointsOnScreen, { x: e.clientX, y: e.clientY }]);
-            setNumPoints(Math.max(leftPoints.length, rightPoints.length + 1));
+            // setRightPoints([...rightPoints, { x: x, y: y }]);
+            // setRightPointsOnScreen([...rightPointsOnScreen, { x: e.clientX, y: e.clientY }]);
+            // setNumPoints(Math.max(leftPoints.length, rightPoints.length + 1));
+            if (mode === 'add') {
+              if (leftIndex <= rightIndex) {
+                const newColor = generateDistinctColor(colorSequence);
+                const newPointPair = { right: { x: x, y: y }, rightOnScreen: { x: e.clientX, y: e.clientY }, color: newColor };
+                setPointPairs([...pointPairs, newPointPair]);
+                setColorSequence([...colorSequence, newColor]);
+                setRightIndex(rightIndex + 1);
+              } else {
+                const newPointPair = pointPairs[rightIndex];
+                newPointPair.right = { x: x, y: y };
+                newPointPair.rightOnScreen = { x: e.clientX, y: e.clientY };
+                setPointPairs([...pointPairs]);
+                setRightIndex(rightIndex + 1);
+              }
+            } else if (mode === 'remove') {
+              
+            } else if (mode === 'move') {
+              
+            }
           }} />)}
 
-        {rightPointsOnScreen.map((p, i) => {
+        {pointPairs.map((p, i) => {
           return (
-            <div key={i} style={{ position: "absolute", left: `${p.x}px`, top: `${p.y}px`, transform: "translate(-50%, -50%)", width: "10px", height: "10px", borderRadius: "50%", backgroundColor: `${colorSequence[i]}`, zIndex: 100 }} />
+            <div key={i} style={{ position: "absolute", left: `${p.rightOnScreen?.x}px`, top: `${p.rightOnScreen?.y}px`, transform: "translate(-50%, -50%)", width: "10px", height: "10px", borderRadius: "50%", backgroundColor: `${colorSequence[i]}`, zIndex: 100 }} />
           );
         })}
       </Paper>
@@ -238,16 +292,6 @@ const NewAlignment: FC<AlignmentProps> = (AlignmentProps) => {
     </Box>
   );
 
-  const addPoint = (
-    <Box
-      sx={{
-        display: "flex",
-        justifyContent: "flex-beginning",
-      }}>
-      <Button fullWidth variant="contained" color="primary" size="small" style={{ textTransform: 'none', whiteSpace: 'nowrap' }} startIcon={<AddIcon />}>New Point</Button>
-    </Box>
-  );
-
   const removeSelectedPoints = (
     <Box
       sx={{
@@ -256,23 +300,10 @@ const NewAlignment: FC<AlignmentProps> = (AlignmentProps) => {
       }}>
       <Button fullWidth variant="contained" color="primary" size="small" style={{ textTransform: 'none', whiteSpace: 'nowrap' }} startIcon={<RemoveIcon />}
         onClick={e => {
-          const newLeftPoints = leftPoints.filter((p, i) => {
+          const newPointPairs = pointPairs.filter((p, i) => {
             return !rowSelectionModel.includes(i + 1);
           });
-          const newRightPoints = rightPoints.filter((p, i) => {
-            return !rowSelectionModel.includes(i + 1);
-          });
-          const newLeftPointsOnScreen = leftPointsOnScreen.filter((p, i) => {
-            return !rowSelectionModel.includes(i + 1);
-          });
-          const newRightPointsOnScreen = rightPointsOnScreen.filter((p, i) => {
-            return !rowSelectionModel.includes(i + 1);
-          });
-          setLeftPoints(newLeftPoints);
-          setRightPoints(newRightPoints);
-          setLeftPointsOnScreen(newLeftPointsOnScreen);
-          setRightPointsOnScreen(newRightPointsOnScreen);
-          setNumPoints(Math.max(newLeftPoints.length, newRightPoints.length));
+          setPointPairs(newPointPairs);
           setRowSelectionModel([]);
         }}>Remove Selected</Button>
     </Box>
@@ -286,11 +317,7 @@ const NewAlignment: FC<AlignmentProps> = (AlignmentProps) => {
       }}>
       <Button fullWidth variant="contained" color="warning" size="small" style={{ textTransform: 'none', whiteSpace: 'nowrap' }} startIcon={<DeleteIcon />}
         onClick={e => {
-          setLeftPoints([]);
-          setRightPoints([]);
-          setLeftPointsOnScreen([]);
-          setRightPointsOnScreen([]);
-          setNumPoints(0);
+          setPointPairs([]);
           setRowSelectionModel([]);
         }}>Remove All</Button>
     </Box>
@@ -375,13 +402,13 @@ const NewAlignment: FC<AlignmentProps> = (AlignmentProps) => {
     { field: 'Yright', headerName: 'Y Right', width: 130, valueFormatter: valueFormat },
   ];
 
-  const rows = [...new Array(numPoints)].map((e, i) => {
+  const rows = [...new Array(pointPairs.length)].map((e, i) => {
     return {
       id: i + 1,
-      Xleft: i < leftPoints.length ? leftPoints[i].x : "NA",
-      Yleft: i < leftPoints.length ? leftPoints[i].y : "NA",
-      Xright: i < rightPoints.length ? rightPoints[i].x : "NA",
-      Yright: i < rightPoints.length ? rightPoints[i].y : "NA",
+      Xleft: i < leftIndex ? pointPairs[i].left?.x : "NA",
+      Yleft: i < leftIndex ? pointPairs[i].left?.y : "NA",
+      Xright: i < rightIndex ? pointPairs[i].right?.x : "NA",
+      Yright: i < rightIndex ? pointPairs[i].right?.y : "NA",
     };
   });
 
