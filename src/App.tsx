@@ -1,5 +1,4 @@
 import React from 'react';
-import ReactDOM from 'react-dom/client';
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import './App.css';
 
@@ -20,14 +19,22 @@ export type Alignment = {
   py: number,
 }
 
+export type Resolution = {
+  width: number,
+  height: number,
+}
+
 export type Slice = {
   name: string;
-  image?: HTMLImageElement;
-  alignment?: Alignment;
+  image: HTMLImageElement;
+  resolution: Resolution;
+  alignment: Alignment;
+  points: Point[];
 }
 
 const App = () => {
   const [slices, setSlices] = React.useState<Slice[]>([]);
+  const [colors, setColors] = React.useState<string[]>([]);
   const alignmentPaths = [...new Array(Math.max(slices.length - 1, 0))].map((s, i) => {
     return `/alignment-${i + 1}-and-${i + 2}`;
   });
@@ -40,7 +47,7 @@ const App = () => {
           <Route path="/help" element={<Help />} />
           <Route path="/import" element={<Import slices={slices} setSlices={setSlices} />} />
           {alignmentPaths.map((path, i) => (
-            <Route key={i} path={path} element={<NewAlignment index={i} slices={slices} setSlices={setSlices} />} />
+            <Route key={i} path={path} element={<NewAlignment index={i} slices={slices} setSlices={setSlices} colors={colors} setColors={setColors} />} />
           ))}
         </Route>
       </Routes>

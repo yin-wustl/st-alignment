@@ -170,17 +170,6 @@ const Menu: FC<MenuProps> = (MenuProps) => {
           </ListItem>
         </List>
         <Divider />
-        {/* {MenuProps.slices.map((s, i) => (
-          <ListItem key={s.name} disablePadding sx={{ display: 'block' }} onClick={e => { setTitle(s.name); handleNavigation("/new-alignment"); }}>
-            <ListItemButton sx={{ minHeight: 48, px: 2.5 }} >
-              <ListItemIcon sx={{ minWidth: 0, mr: 3 }}>
-                <img src={s.image?.src} width={32} height={32} />
-              </ListItemIcon>
-              <ListItemText primary={s.name} />
-            </ListItemButton>
-          </ListItem>
-        ))} */}
-        <Divider />
         {[...new Array(Math.max(MenuProps.slices.length - 1, 0))].map((s, i) => {
           const title = "Alignment " + String(i + 1) + " and " + String(i + 2);
           const longTitle = "Alignment " + MenuProps.slices[i].name + " and " + MenuProps.slices[i + 1].name;

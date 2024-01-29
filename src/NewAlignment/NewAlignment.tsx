@@ -1,12 +1,8 @@
-import React, { FC, useEffect } from 'react';
+import React, { FC } from 'react';
 import {
   Stack,
   Button,
   Grid,
-  IconButton,
-  Tooltip,
-  Slider,
-  Input,
   Typography,
   Box,
   Paper,
@@ -23,28 +19,17 @@ import DoNotTouchIcon from '@mui/icons-material/DoNotTouch';
 import { DataGrid, GridColDef, GridValueGetterParams, GridRenderCellParams, GridRowSelectionModel, GridValueFormatterParams } from '@mui/x-data-grid';
 import { Matrix, SVD, determinant } from 'ml-matrix';
 
+import { Alignment, Point, Slice, Resolution } from '../App';
 import { AlignmentProps } from './NewAlignment.lazy';
 import { StyledGridOverlay, CustomNoRowsOverlay } from '../Import/Import';
-
-
-type point = {
-  x: number,
-  y: number,
-};
-
-type pointPair = {
-  left?: point,
-  right?: point,
-  leftOnScreen?: point,
-  rightOnScreen?: point,
-  color: string,
-};
 
 type output = {
   theta: number,
   px: number,
   py: number,
 }
+
+const enum Mode { add, remove, move, off };
 
 const saveFile = (href: string, filename: string) => {
   const link = document.createElement("a");
@@ -57,7 +42,7 @@ const saveFile = (href: string, filename: string) => {
   URL.revokeObjectURL(href);
 };
 
-const centroid = (points: point[]) => {
+const centroid = (points: Point[]) => {
   let x = 0;
   let y = 0;
   points.forEach((p) => {
@@ -67,13 +52,13 @@ const centroid = (points: point[]) => {
   return { x: x / points.length, y: y / points.length };
 }
 
-const translate = (points: point[], centroid: { x: number, y: number }) => {
+const translate = (points: Point[], centroid: { x: number, y: number }) => {
   return points.map((p) => {
     return { x: p.x - centroid.x, y: p.y - centroid.y };
   });
 }
 
-const pointsToMatrix = (points: point[]) => {
+const pointsToMatrix = (points: Point[]) => {
   const m = new Matrix(points.length, 2);
   points.forEach((p, i) => {
     m.set(i, 0, p.x);
@@ -82,7 +67,7 @@ const pointsToMatrix = (points: point[]) => {
   return m;
 }
 
-const computeTransformation = (left: point[], right: point[]) => {
+const computeTransformation = (left: Point[], right: Point[]) => {
   const leftCentroid = centroid(left);
   const rightCentroid = centroid(right);
   const translation = { x: leftCentroid.x - rightCentroid.x, y: leftCentroid.y - rightCentroid.y };
@@ -113,173 +98,94 @@ const valueFormat = (params: GridValueFormatterParams<number>) => {
 }
 
 const generateDistinctColor = (colorSequence: string[]) => {
+  let r, g, b;
   let newColor;
   do {
-    newColor = '#' + Math.floor(Math.random() * 16777215).toString(16);
-  } while (colorSequence.includes(newColor));
+    [r, g, b] = [Math.floor(Math.random() * 256), Math.floor(Math.random() * 256), Math.floor(Math.random() * 256)];
+    newColor = '#' + [r, g, b].map(c => c.toString(16).padStart(2, '0')).join('')
+  } while (r > 240 && g > 240 && b > 240 && colorSequence.includes(newColor));
   return newColor;
 }
 
 const NewAlignment: FC<AlignmentProps> = (AlignmentProps) => {
+  const index = AlignmentProps.index;
+  const slices = AlignmentProps.slices;
+  const setSlices = AlignmentProps.setSlices;
+  const colors = AlignmentProps.colors;
+  const setColors = AlignmentProps.setColors;
 
-  const [pointPairs, setPointPairs] = React.useState<pointPair[]>([]);
-  const [leftIndex, setLeftIndex] = React.useState<number>(0);
-  const [rightIndex, setRightIndex] = React.useState<number>(0);
-
-  const [leftPoints, setLeftPoints] = React.useState<point[]>([]);
-  const [rightPoints, setRightPoints] = React.useState<point[]>([]);
-  const [leftPointsOnScreen, setLeftPointsOnScreen] = React.useState<point[]>([]);
-  const [rightPointsOnScreen, setRightPointsOnScreen] = React.useState<point[]>([]);
-  const [numPoints, setNumPoints] = React.useState<number>(Math.max(leftPoints.length, rightPoints.length));
   const [rowSelectionModel, setRowSelectionModel] = React.useState<GridRowSelectionModel>([]);
   const [output, setOutput] = React.useState<output>({ theta: 0, px: 0, py: 0 });
 
-  const [leftScaling, setLeftScaling] = React.useState<{ width: number, height: number }>({ width: 1, height: 1 });
-  const [rightScaling, setRightScaling] = React.useState<{ width: number, height: number }>({ width: 1, height: 1 });
+  const [mode, setMode] = React.useState<Mode>(Mode.add);
+  const handleModeChange = (event: React.MouseEvent<HTMLElement>, newMode: Mode) => { setMode(newMode); };
 
-  const leftImageRef = AlignmentProps.slices[AlignmentProps.index].image;
-  const rightImageRef = AlignmentProps.slices[AlignmentProps.index + 1].image;
+  const handleClick = (event: React.MouseEvent<HTMLImageElement>, sliceIndex: number) => {
+    if (mode === Mode.add) {
+      const maxPoints = slices.map((s) => { return s.points.length; }).reduce((a, b) => { return Math.max(a, b); });
+      if (slices[index].points.length === maxPoints) {
+        setColors([...colors, generateDistinctColor(colors)]);
+      }
+      const img = event.currentTarget;
+      const rect = img.getBoundingClientRect();
+      const widthScale = img.clientWidth / img.naturalWidth;
+      const heightScale = img.clientHeight / img.naturalHeight;
+      const x = (event.clientX - rect.left) / widthScale;
+      const y = (event.clientY - rect.top) / heightScale;
+      const newSlices = [...slices];
+      newSlices[sliceIndex].points.push({ x: x, y: y });
+      setSlices(newSlices);
+    } else if (mode === Mode.remove) {
 
-  const [mode, setMode] = React.useState<string | null>('add');
-  const handleModeChange = (event: React.MouseEvent<HTMLElement>, newMode: string | null) => { setMode(newMode); };
+    } else if (mode === Mode.move) {
 
-  const handleClick = (event: React.MouseEvent<HTMLElement>) => {
-
+    }
   };
 
-  const handleLeftImageScale = (event: React.SyntheticEvent<HTMLImageElement, Event>) => {
-    const img = event.currentTarget;
-    const rect = img.getBoundingClientRect();
-    const widthScale = img.clientWidth / img.naturalWidth;
-    const heightScale = img.clientHeight / img.naturalHeight;
-    setLeftScaling({ width: widthScale, height: heightScale });
-    const newLeftPointsOnScreen = leftPoints.map((p) => {
-      return { x: p.x * widthScale + rect.left, y: p.y * heightScale + rect.top };
-    });
-    setLeftPointsOnScreen(newLeftPointsOnScreen);
+  const renderPoints = (imgRef: React.RefObject<HTMLImageElement>, sliceIndex: number) => {
+    const rect = imgRef.current?.getBoundingClientRect();
+    const widthScale = (imgRef.current?.clientWidth ?? 1) / (imgRef.current?.naturalWidth ?? 1);
+    const heightScale = (imgRef.current?.clientHeight ?? 1) / (imgRef.current?.naturalHeight ?? 1);
+    return slices[sliceIndex].points.map((p, i) =>
+    (<div key={`image-${sliceIndex}-point-${i}`}
+      style={{ position: "absolute", left: p.x * widthScale, top: p.y * heightScale, width: "10px", height: "10px", borderRadius: "50%", transform: "translate(-50%, -50%)", backgroundColor: `${colors[i]}`, border: "1px solid white" }} />)
+    );
   };
 
-  const handleRightImageScale = (event: React.SyntheticEvent<HTMLImageElement, Event>) => {
-    const img = event.currentTarget;
-    const widthScale = img.clientWidth / img.naturalWidth;
-    const heightScale = img.clientHeight / img.naturalHeight;
-    setRightScaling({ width: widthScale, height: heightScale });
-  };
+  const RenderImg = (sliceIndex: number) => {
+    const imgRef = React.useRef<HTMLImageElement>(null);
 
-  const leftImage = (
-    <Box>
-      <Paper
-        elevation={9}
-        style={{ marginBottom: "10px" }}
-        sx={{
-          height: "100%",
-          width: "100%",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
-        {leftImageRef && (<img id="left-image" src={leftImageRef.src} style={{ width: "100%", height: "100%", objectFit: "contain" }}
-          onLoad={handleLeftImageScale}
-          onResize={handleLeftImageScale}
-          onClick={(e) => {
-            const rect = e.currentTarget.getBoundingClientRect();
-            const x = (e.clientX - rect.left) / leftScaling.width;
-            const y = (e.clientY - rect.top) / leftScaling.height;
-            if (mode === 'add') {
-              if (leftIndex >= rightIndex) {
-                const newColor = generateDistinctColor(pointPairs.map((p) => { return p.color; }));
-                const newPointPair = { left: { x: x, y: y }, leftOnScreen: { x: e.clientX, y: e.clientY }, color: newColor };
-                setPointPairs([...pointPairs, newPointPair]);
-                setLeftIndex(leftIndex + 1);
-              } else {
-                const newPointPair = pointPairs[leftIndex];
-                newPointPair.left = { x: x, y: y };
-                newPointPair.leftOnScreen = { x: e.clientX, y: e.clientY };
-                setPointPairs([...pointPairs]);
-                setLeftIndex(leftIndex + 1);
-              }
-            } else if (mode === 'remove') {
-              
-            } else if (mode === 'move') {
-              
-            }
-          }} />)}
-
-        {pointPairs.map((p, i) => {
-          return (
-            <div key={i} style={{ position: "absolute", left: `${p.leftOnScreen?.x}px`, top: `${p.leftOnScreen?.y}px`, transform: "translate(-50%, -50%)", width: "10px", height: "10px", borderRadius: "50%", backgroundColor: `${pointPairs[i].color}`, zIndex: 100 }} />
-          );
-        })}
-
-      </Paper>
-      <Stack
-        direction="row"
-        spacing={2}
-        justifyContent="center"
-        alignItems="center"
-      >
-        <Typography variant="h6">{AlignmentProps.slices[AlignmentProps.index].name}</Typography>
-      </Stack>
-    </Box>
-  );
-
-  const rightImage = (
-    <Box>
-      <Paper
-        elevation={9}
-        style={{ marginBottom: "10px" }}
-        sx={{
-          height: "100%",
-          width: "100%",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-      >
-        {rightImageRef && (<img id="left-image" src={rightImageRef.src} style={{ width: "100%", height: "100%", objectFit: "contain" }}
-          onLoad={handleRightImageScale}
-          onResize={handleRightImageScale}
-          onClick={(e) => {
-            const rect = e.currentTarget.getBoundingClientRect();
-            const x = (e.clientX - rect.left) / rightScaling.width;
-            const y = (e.clientY - rect.top) / rightScaling.height;
-            if (mode === 'add') {
-              if (leftIndex <= rightIndex) {
-                const newColor = generateDistinctColor(pointPairs.map((p) => { return p.color; }));
-                const newPointPair = { right: { x: x, y: y }, rightOnScreen: { x: e.clientX, y: e.clientY }, color: newColor };
-                setPointPairs([...pointPairs, newPointPair]);
-                setRightIndex(rightIndex + 1);
-              } else {
-                const newPointPair = pointPairs[rightIndex];
-                newPointPair.right = { x: x, y: y };
-                newPointPair.rightOnScreen = { x: e.clientX, y: e.clientY };
-                setPointPairs([...pointPairs]);
-                setRightIndex(rightIndex + 1);
-              }
-            } else if (mode === 'remove') {
-              
-            } else if (mode === 'move') {
-              
-            }
-          }} />)}
-
-        {pointPairs.map((p, i) => {
-          return (
-            <div key={i} style={{ position: "absolute", left: `${p.rightOnScreen?.x}px`, top: `${p.rightOnScreen?.y}px`, transform: "translate(-50%, -50%)", width: "10px", height: "10px", borderRadius: "50%", backgroundColor: `${pointPairs[i].color}`, zIndex: 100 }} />
-          );
-        })}
-      </Paper>
-      <Stack
-        direction="row"
-        spacing={2}
-        justifyContent="center"
-        alignItems="center"
-      >
-        <Typography variant="h6">{AlignmentProps.slices[AlignmentProps.index + 1].name}</Typography>
-      </Stack>
-    </Box>
-  );
+    return (
+      <Box>
+        <Paper
+          elevation={9}
+          style={{ marginBottom: "10px" }}
+          sx={{
+            height: "100%",
+            width: "100%",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            position: "relative",
+          }}
+        >
+          <img id={`img-${sliceIndex}`} ref={imgRef} src={slices[sliceIndex].image.src} style={{ width: "100%", height: "100%", objectFit: "contain" }}
+            onClick={(e) => {
+              handleClick(e, sliceIndex);
+            }} />
+          {renderPoints(imgRef, sliceIndex)}
+        </Paper>
+        <Stack
+          direction="row"
+          spacing={2}
+          justifyContent="center"
+          alignItems="center"
+        >
+          <Typography variant="h6">{slices[sliceIndex].name}</Typography>
+        </Stack>
+      </Box>
+    );
+  }
 
   const removeSelectedPoints = (
     <Box
@@ -289,10 +195,7 @@ const NewAlignment: FC<AlignmentProps> = (AlignmentProps) => {
       }}>
       <Button fullWidth variant="contained" color="primary" size="small" style={{ textTransform: 'none', whiteSpace: 'nowrap' }} startIcon={<RemoveIcon />}
         onClick={e => {
-          const newPointPairs = pointPairs.filter((p, i) => {
-            return !rowSelectionModel.includes(i + 1);
-          });
-          setPointPairs(newPointPairs);
+          // TODO: remove points across all slices
           setRowSelectionModel([]);
         }}>Remove Selected</Button>
     </Box>
@@ -306,7 +209,9 @@ const NewAlignment: FC<AlignmentProps> = (AlignmentProps) => {
       }}>
       <Button fullWidth variant="contained" color="warning" size="small" style={{ textTransform: 'none', whiteSpace: 'nowrap' }} startIcon={<DeleteIcon />}
         onClick={e => {
-          setPointPairs([]);
+          const newSlices = [...slices]
+          newSlices.forEach((s) => { s.points = []; });
+          setSlices(newSlices);
           setRowSelectionModel([]);
         }}>Remove All</Button>
     </Box>
@@ -321,11 +226,11 @@ const NewAlignment: FC<AlignmentProps> = (AlignmentProps) => {
       }}>
       <Button fullWidth variant="contained" color="primary" size="small" style={{ textTransform: 'none', whiteSpace: 'nowrap' }} startIcon={<CalculateIcon />}
         onClick={(e) => {
-          if (leftIndex !== rightIndex) {
+          if (slices[index].points.length !== slices[index + 1].points.length) {
             alert("Must have same number of points on both images");
             return;
           }
-          const res = computeTransformation(leftPoints, rightPoints);
+          const res = computeTransformation(slices[index].points, slices[index + 1].points);
           const theta = rotationMatrixToAngle(res.R);
           setOutput({ theta: theta, px: res.translation.x, py: res.translation.y });
           console.log(output);
@@ -380,7 +285,7 @@ const NewAlignment: FC<AlignmentProps> = (AlignmentProps) => {
       field: 'Color', headerName: 'Color', width: 130, renderCell: (params: GridRenderCellParams) => {
         return (
           <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100%" }}>
-            <div style={{ width: "20px", height: "20px", borderRadius: "50%", backgroundColor: `${pointPairs[params.row.id - 1].color}` }} />
+            <div style={{ width: "20px", height: "20px", borderRadius: "50%", backgroundColor: `${colors[params.row.id - 1]}` }} />
           </div>
         )
       }
@@ -391,13 +296,13 @@ const NewAlignment: FC<AlignmentProps> = (AlignmentProps) => {
     { field: 'Yright', headerName: 'Y Right', width: 130, valueFormatter: valueFormat },
   ];
 
-  const rows = [...new Array(pointPairs.length)].map((e, i) => {
+  const rows = [...new Array(Math.max(slices[index].points.length, slices[index + 1].points.length))].map((e, i) => {
     return {
       id: i + 1,
-      Xleft: i < leftIndex ? pointPairs[i].left?.x : "NA",
-      Yleft: i < leftIndex ? pointPairs[i].left?.y : "NA",
-      Xright: i < rightIndex ? pointPairs[i].right?.x : "NA",
-      Yright: i < rightIndex ? pointPairs[i].right?.y : "NA",
+      Xleft: slices[index].points[i] ? slices[index].points[i].x : "NA",
+      Yleft: slices[index].points[i] ? slices[index].points[i].y : "NA",
+      Xright: slices[index + 1].points[i] ? slices[index + 1].points[i].x : "NA",
+      Yright: slices[index + 1].points[i] ? slices[index + 1].points[i].y : "NA",
     };
   });
 
@@ -451,13 +356,15 @@ const NewAlignment: FC<AlignmentProps> = (AlignmentProps) => {
   return (
     <Grid item container xs={12} spacing={2}>
       <Grid item xs={3}>
-        {leftImage}
+        {/* {leftImage} */}
+        {RenderImg(index)}
       </Grid>
       <Grid item xs={6}>
         {controlPanel}
       </Grid>
       <Grid item xs={3}>
-        {rightImage}
+        {/* {rightImage} */}
+        {RenderImg(index + 1)}
       </Grid>
     </Grid>
   );

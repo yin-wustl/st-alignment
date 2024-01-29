@@ -1,6 +1,6 @@
 import React, { FC } from 'react';
-import { Slice } from '../App';
 import { ImportProps } from './Import.lazy';
+import { Alignment, Point, Slice, Resolution } from '../App';
 
 import { Box, Grid, Paper, Stack, Button } from '@mui/material';
 import { styled } from '@mui/material/styles';
@@ -85,6 +85,9 @@ export const CustomNoRowsOverlay = () => (
   </StyledGridOverlay>
 );
 
+const defaultAlignment: Alignment = { theta: 0, px: 0, py: 0 };
+const defaultResolution = { width: 0, height: 0 };
+
 const Import: FC<ImportProps> = (ImportProps) => {
   const [rowSelectionModel, setRowSelectionModel] = React.useState<GridRowSelectionModel>([]);
 
@@ -123,7 +126,8 @@ const Import: FC<ImportProps> = (ImportProps) => {
             if (!file) return;
             const name = file.name;
             const img = await handleImageUpload(file);
-            ImportProps.setSlices([...ImportProps.slices, { name: name, image: img, alignment: { theta: 0, px: 0, py: 0 } }]);
+            const resolution = { width: img.naturalWidth, height: img.naturalHeight };
+            ImportProps.setSlices([...ImportProps.slices, { name: name, image: img, alignment: { theta: 0, px: 0, py: 0 }, resolution: resolution, points: [] }]);
           }}
         />
       </Button>
@@ -174,27 +178,39 @@ const Import: FC<ImportProps> = (ImportProps) => {
               name: "Slice 1",
               image: new Image(),
               alignment: { theta: 0, px: 0, py: 0 },
+              resolution: { width: 0, height: 0 },
+              points: []
             },
             {
               name: "Slice 2",
               image: new Image(),
               alignment: { theta: 0, px: 0, py: 0 },
+              resolution: { width: 0, height: 0 },
+              points: []
             },
             {
               name: "Slice 3",
               image: new Image(),
               alignment: { theta: 0, px: 0, py: 0 },
+              resolution: { width: 0, height: 0 },
+              points: []
             },
             {
               name: "Slice 4",
               image: new Image(),
               alignment: { theta: 0, px: 0, py: 0 },
+              resolution: { width: 0, height: 0 },
+              points: []
             },
           ];
           newSlices[0].image.src = img1;
+          newSlices[0].resolution = { width: newSlices[0].image.naturalWidth, height: newSlices[0].image.naturalHeight };
           newSlices[1].image.src = img2;
+          newSlices[1].resolution = { width: newSlices[1].image.naturalWidth, height: newSlices[1].image.naturalHeight };
           newSlices[2].image.src = img3;
+          newSlices[2].resolution = { width: newSlices[2].image.naturalWidth, height: newSlices[2].image.naturalHeight };
           newSlices[3].image.src = img4;
+          newSlices[3].resolution = { width: newSlices[3].image.naturalWidth, height: newSlices[3].image.naturalHeight };
           ImportProps.setSlices(newSlices);
         }}>
         Use Demo

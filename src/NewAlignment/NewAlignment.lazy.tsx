@@ -5,6 +5,8 @@ export interface AlignmentProps {
   index: number;
   slices: Slice[];
   setSlices: (slices: Slice[]) => void;
+  colors: string[];
+  setColors: (colors: string[]) => void;
 }
 
 const LazyNewAlignment = lazy(() => import('./NewAlignment'));
