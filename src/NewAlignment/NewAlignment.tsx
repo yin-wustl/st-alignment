@@ -120,8 +120,24 @@ const NewAlignment: FC<AlignmentProps> = (AlignmentProps) => {
   const [mode, setMode] = React.useState<Mode>(Mode.add);
   const handleModeChange = (event: React.MouseEvent<HTMLElement>, newMode: Mode) => { setMode(newMode); };
 
+  const removePoints = () => {
+    const newSlices = [...slices]
+    newSlices.forEach((s) => {
+      s.points = s.points.filter((p, i) => {
+        return !rowSelectionModel.includes(i + 1);
+      });
+    });
+    const newColors = [...colors].filter((c, i) => {
+      return !rowSelectionModel.includes(i + 1);
+    });
+    setSlices(newSlices);
+    setRowSelectionModel([]);
+    setColors(newColors);
+  };
+
   const handleClick = (event: React.MouseEvent<HTMLImageElement>, sliceIndex: number) => {
     if (mode === Mode.add) {
+      // TODO: add point to other slices if such point index does not exist there
       const maxPoints = slices.map((s) => { return s.points.length; }).reduce((a, b) => { return Math.max(a, b); });
       if (slices[index].points.length === maxPoints) {
         setColors([...colors, generateDistinctColor(colors)]);
@@ -148,7 +164,48 @@ const NewAlignment: FC<AlignmentProps> = (AlignmentProps) => {
     const heightScale = (imgRef.current?.clientHeight ?? 1) / (imgRef.current?.naturalHeight ?? 1);
     return slices[sliceIndex].points.map((p, i) =>
     (<div key={`image-${sliceIndex}-point-${i}`}
-      style={{ position: "absolute", left: p.x * widthScale, top: p.y * heightScale, width: "10px", height: "10px", borderRadius: "50%", transform: "translate(-50%, -50%)", backgroundColor: `${colors[i]}`, border: "1px solid white" }} />)
+      style={{ position: "absolute", left: p.x * widthScale, top: p.y * heightScale, width: "10px", height: "10px", borderRadius: "50%", transform: "translate(-50%, -50%)", backgroundColor: `${colors[i]}`, border: "1px solid white" }}
+      onClick={e => {
+        if (!rowSelectionModel.includes(i + 1)) {
+          const newRowSelectionModel = [...rowSelectionModel];
+          newRowSelectionModel.push(i + 1);
+          setRowSelectionModel(newRowSelectionModel);
+        } else {
+          const newRowSelectionModel = [...rowSelectionModel];
+          newRowSelectionModel.splice(newRowSelectionModel.indexOf(i + 1), 1);
+          setRowSelectionModel(newRowSelectionModel);
+        }
+      }}
+      draggable={true}
+      onDragStart={e => {
+        e.dataTransfer.setData('application/reactflow', i.toString());
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.dropEffect = 'move';
+        
+      }}
+      onDragOver={e => {
+        e.preventDefault();
+      }}
+      onDrag={e => {
+        e.preventDefault();
+        const x = (e.clientX - (rect?.left ?? 0)) / widthScale;
+        const y = (e.clientY - (rect?.top ?? 0)) / heightScale;
+        const newPoints = [...slices[sliceIndex].points];
+        newPoints[i] = { x: x, y: y };
+        const newSlices = [...slices];
+        newSlices[sliceIndex].points = newPoints;
+        setSlices(newSlices);
+      }}
+      onDrop={e => {
+        e.preventDefault();
+        const x = (e.clientX - (rect?.left ?? 0)) / widthScale;
+        const y = (e.clientY - (rect?.top ?? 0)) / heightScale;
+        const newPoints = [...slices[sliceIndex].points];
+        newPoints[i] = { x: x, y: y };
+        const newSlices = [...slices];
+        newSlices[sliceIndex].points = newPoints;
+        setSlices(newSlices);
+      }} />)
     );
   };
 
@@ -195,8 +252,7 @@ const NewAlignment: FC<AlignmentProps> = (AlignmentProps) => {
       }}>
       <Button fullWidth variant="contained" color="primary" size="small" style={{ textTransform: 'none', whiteSpace: 'nowrap' }} startIcon={<RemoveIcon />}
         onClick={e => {
-          // TODO: remove points across all slices
-          setRowSelectionModel([]);
+          removePoints();
         }}>Remove Selected</Button>
     </Box>
   );
@@ -213,6 +269,7 @@ const NewAlignment: FC<AlignmentProps> = (AlignmentProps) => {
           newSlices.forEach((s) => { s.points = []; });
           setSlices(newSlices);
           setRowSelectionModel([]);
+          setColors([]);
         }}>Remove All</Button>
     </Box>
   );
