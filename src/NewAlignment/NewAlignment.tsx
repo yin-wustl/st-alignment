@@ -8,6 +8,10 @@ import {
   Paper,
   ToggleButtonGroup,
   ToggleButton,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
 } from "@mui/material";
 import AddIcon from '@mui/icons-material/Add';
 import RemoveIcon from '@mui/icons-material/Remove';
@@ -16,6 +20,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import SaveIcon from '@mui/icons-material/Save';
 import OpenWithIcon from '@mui/icons-material/OpenWith';
 import DoNotTouchIcon from '@mui/icons-material/DoNotTouch';
+import TouchAppIcon from '@mui/icons-material/TouchApp';
 import { DataGrid, GridColDef, GridValueGetterParams, GridRenderCellParams, GridRowSelectionModel, GridValueFormatterParams } from '@mui/x-data-grid';
 import { Matrix, SVD, determinant } from 'ml-matrix';
 
@@ -23,13 +28,8 @@ import { Alignment, Point, Slice, Resolution } from '../App';
 import { AlignmentProps } from './NewAlignment.lazy';
 import { StyledGridOverlay, CustomNoRowsOverlay } from '../Import/Import';
 
-type output = {
-  theta: number,
-  px: number,
-  py: number,
-}
-
 const enum Mode { add, remove, move, off };
+const enum Direction { left, right };
 
 const saveFile = (href: string, filename: string) => {
   const link = document.createElement("a");
@@ -77,9 +77,7 @@ const computeTransformation = (left: Point[], right: Point[]) => {
   const Q = pointsToMatrix(rightTranslated);
   const H = P.transpose().mmul(Q);
   const svd = new SVD(H);
-  console.log(svd);
   const U = svd.leftSingularVectors;
-  const Sigma = svd.diagonal;
   const V = svd.rightSingularVectors;
   const d = Math.sign(determinant(V.mmul(U.transpose())));
   const newDiag = new Matrix([[1, 0], [0, d]]);
@@ -93,7 +91,7 @@ const rotationMatrixToAngle = (R: Matrix) => {
   return angle;
 }
 
-const valueFormat = (params: GridValueFormatterParams<number>) => {
+export const valueFormat = (params: GridValueFormatterParams<number>) => {
   return params.value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
 
@@ -113,9 +111,12 @@ const NewAlignment: FC<AlignmentProps> = (AlignmentProps) => {
   const setSlices = AlignmentProps.setSlices;
   const colors = AlignmentProps.colors;
   const setColors = AlignmentProps.setColors;
+  const allowMixMatch = AlignmentProps.allowMixMatch;
+
+  const [leftSliceIndex, setLeftSliceIndex] = React.useState<number>(index);
+  const [rightSliceIndex, setRightSliceIndex] = React.useState<number>(index + 1);
 
   const [rowSelectionModel, setRowSelectionModel] = React.useState<GridRowSelectionModel>([]);
-  const [output, setOutput] = React.useState<output>({ theta: 0, px: 0, py: 0 });
 
   const [mode, setMode] = React.useState<Mode>(Mode.add);
   const handleModeChange = (event: React.MouseEvent<HTMLElement>, newMode: Mode) => { setMode(newMode); };
@@ -139,7 +140,7 @@ const NewAlignment: FC<AlignmentProps> = (AlignmentProps) => {
     if (mode === Mode.add) {
       // TODO: add point to other slices if such point index does not exist there
       const maxPoints = slices.map((s) => { return s.points.length; }).reduce((a, b) => { return Math.max(a, b); });
-      if (slices[index].points.length === maxPoints) {
+      if (slices[sliceIndex].points.length === maxPoints) {
         setColors([...colors, generateDistinctColor(colors)]);
       }
       const img = event.currentTarget;
@@ -150,6 +151,11 @@ const NewAlignment: FC<AlignmentProps> = (AlignmentProps) => {
       const y = (event.clientY - rect.top) / heightScale;
       const newSlices = [...slices];
       newSlices[sliceIndex].points.push({ x: x, y: y });
+      newSlices.forEach((s, i) => {
+        if (s.points.length < newSlices[sliceIndex].points.length) {
+          s.points.push({ x: x, y: y });
+        }
+      });
       setSlices(newSlices);
     } else if (mode === Mode.remove) {
 
@@ -166,22 +172,27 @@ const NewAlignment: FC<AlignmentProps> = (AlignmentProps) => {
     (<div key={`image-${sliceIndex}-point-${i}`}
       style={{ position: "absolute", left: p.x * widthScale, top: p.y * heightScale, width: "10px", height: "10px", borderRadius: "50%", transform: "translate(-50%, -50%)", backgroundColor: `${colors[i]}`, border: "1px solid white" }}
       onClick={e => {
-        if (!rowSelectionModel.includes(i + 1)) {
-          const newRowSelectionModel = [...rowSelectionModel];
-          newRowSelectionModel.push(i + 1);
+        if (mode === Mode.add) {
+          if (!rowSelectionModel.includes(i + 1)) {
+            const newRowSelectionModel = [...rowSelectionModel];
+            newRowSelectionModel.push(i + 1);
+            setRowSelectionModel(newRowSelectionModel);
+          } else {
+            const newRowSelectionModel = [...rowSelectionModel];
+            newRowSelectionModel.splice(newRowSelectionModel.indexOf(i + 1), 1);
+            setRowSelectionModel(newRowSelectionModel);
+          }
+        } else if (mode === Mode.remove) {
+          // FIXME: this is not working
+          const newRowSelectionModel = [i + 1];
           setRowSelectionModel(newRowSelectionModel);
-        } else {
-          const newRowSelectionModel = [...rowSelectionModel];
-          newRowSelectionModel.splice(newRowSelectionModel.indexOf(i + 1), 1);
-          setRowSelectionModel(newRowSelectionModel);
+          console.log(rowSelectionModel);
+          removePoints();
         }
       }}
       draggable={true}
       onDragStart={e => {
-        e.dataTransfer.setData('application/reactflow', i.toString());
         e.dataTransfer.effectAllowed = 'move';
-        e.dataTransfer.dropEffect = 'move';
-        
       }}
       onDragOver={e => {
         e.preventDefault();
@@ -196,27 +207,17 @@ const NewAlignment: FC<AlignmentProps> = (AlignmentProps) => {
         newSlices[sliceIndex].points = newPoints;
         setSlices(newSlices);
       }}
-      onDrop={e => {
-        e.preventDefault();
-        const x = (e.clientX - (rect?.left ?? 0)) / widthScale;
-        const y = (e.clientY - (rect?.top ?? 0)) / heightScale;
-        const newPoints = [...slices[sliceIndex].points];
-        newPoints[i] = { x: x, y: y };
-        const newSlices = [...slices];
-        newSlices[sliceIndex].points = newPoints;
-        setSlices(newSlices);
-      }} />)
+    />)
     );
   };
 
-  const RenderImg = (sliceIndex: number) => {
+  const RenderImg = (sliceIndex: number, location: Direction) => {
     const imgRef = React.useRef<HTMLImageElement>(null);
-
     return (
       <Box>
         <Paper
           elevation={9}
-          style={{ marginBottom: "10px" }}
+          style={{ marginBottom: "20px" }}
           sx={{
             height: "100%",
             width: "100%",
@@ -238,9 +239,28 @@ const NewAlignment: FC<AlignmentProps> = (AlignmentProps) => {
           justifyContent="center"
           alignItems="center"
         >
-          <Typography variant="h6">{slices[sliceIndex].name}</Typography>
+          <FormControl variant='standard' sx={{ m: 1, minWidth: 80 }}>
+            <InputLabel>Slice</InputLabel>
+            <Select
+              value={location === Direction.left ? leftSliceIndex : rightSliceIndex}
+              onChange={e => { location === Direction.left ? setLeftSliceIndex(Number(e.target.value)) : setRightSliceIndex(Number(e.target.value)) }}
+              autoWidth
+              label="Age"
+              disabled={!allowMixMatch}
+              sx={{ minWidth: 200 }}
+              MenuProps={{
+                PaperProps: {
+                  style: {
+                    minWidth: '200px',
+                  },
+                },
+              }}
+            >
+              {slices.map((s, i) => (<MenuItem value={i}>{s.name}</MenuItem>))}
+            </Select>
+          </FormControl>
         </Stack>
-      </Box>
+      </Box >
     );
   }
 
@@ -250,7 +270,7 @@ const NewAlignment: FC<AlignmentProps> = (AlignmentProps) => {
         display: "flex",
         justifyContent: "flex-beginning",
       }}>
-      <Button fullWidth variant="contained" color="primary" size="small" style={{ textTransform: 'none', whiteSpace: 'nowrap' }} startIcon={<RemoveIcon />}
+      <Button fullWidth variant="contained" color="warning" size="small" style={{ textTransform: 'none', whiteSpace: 'nowrap' }} startIcon={<RemoveIcon />}
         onClick={e => {
           removePoints();
         }}>Remove Selected</Button>
@@ -263,7 +283,7 @@ const NewAlignment: FC<AlignmentProps> = (AlignmentProps) => {
         display: "flex",
         justifyContent: "flex-beginning",
       }}>
-      <Button fullWidth variant="contained" color="warning" size="small" style={{ textTransform: 'none', whiteSpace: 'nowrap' }} startIcon={<DeleteIcon />}
+      <Button fullWidth variant="contained" color="error" size="small" style={{ textTransform: 'none', whiteSpace: 'nowrap' }} startIcon={<DeleteIcon />}
         onClick={e => {
           const newSlices = [...slices]
           newSlices.forEach((s) => { s.points = []; });
@@ -274,46 +294,7 @@ const NewAlignment: FC<AlignmentProps> = (AlignmentProps) => {
     </Box>
   );
 
-  const compute = (
-    <Box
-      sx={{
-        display: "flex",
-        justifyContent: "flex-end",
-        align: "right",
-      }}>
-      <Button fullWidth variant="contained" color="primary" size="small" style={{ textTransform: 'none', whiteSpace: 'nowrap' }} startIcon={<CalculateIcon />}
-        onClick={(e) => {
-          if (slices[index].points.length !== slices[index + 1].points.length) {
-            alert("Must have same number of points on both images");
-            return;
-          }
-          const res = computeTransformation(slices[index].points, slices[index + 1].points);
-          const theta = rotationMatrixToAngle(res.R);
-          setOutput({ theta: theta, px: res.translation.x, py: res.translation.y });
-          console.log(output);
-        }} >Compute Alignment</Button>
-    </Box>
-  );
-
-  const save = (
-    <Box
-      sx={{
-        display: "flex",
-        justifyContent: "flex-end",
-        align: "right",
-      }}>
-      <Button fullWidth variant="contained" color="primary" size="small" style={{ textTransform: 'none', whiteSpace: 'nowrap' }} startIcon={<SaveIcon />}
-        onClick={(e) => {
-          const filename = `alignment-${AlignmentProps.index + 1}-and-${AlignmentProps.index + 2}.json`;
-          const json = JSON.stringify(output);
-          const blob = new Blob([json], { type: "application/json" });
-          const href = URL.createObjectURL(blob);
-          saveFile(href, filename);
-        }} >Save Alignment</Button>
-    </Box>
-  )
-
-  const modeSlection = (
+  const modeSelection = (
     <ToggleButtonGroup
       value={mode}
       exclusive
@@ -321,25 +302,22 @@ const NewAlignment: FC<AlignmentProps> = (AlignmentProps) => {
       aria-label="text alignment"
       size='small'
     >
-      <ToggleButton value="add">
-        <AddIcon />
+      <ToggleButton value={Mode.add}>
+        <TouchAppIcon />
       </ToggleButton>
-      <ToggleButton value="remove">
-        <RemoveIcon />
+      <ToggleButton value={Mode.remove}>
+        <DeleteIcon />
       </ToggleButton>
-      <ToggleButton value="move">
-        <OpenWithIcon />
-      </ToggleButton>
-      <ToggleButton value="off">
+      <ToggleButton value={Mode.off}>
         <DoNotTouchIcon />
       </ToggleButton>
     </ToggleButtonGroup >
   )
 
   const columns: GridColDef[] = [
-    { field: 'id', headerName: '#', width: 70 },
+    { field: 'id', headerName: '#', width: 70, disableColumnMenu: true },
     {
-      field: 'Color', headerName: 'Color', width: 130, renderCell: (params: GridRenderCellParams) => {
+      field: 'Color', headerName: 'Color', width: 100, disableColumnMenu: true, renderCell: (params: GridRenderCellParams) => {
         return (
           <div style={{ display: "flex", justifyContent: "center", alignItems: "center", height: "100%" }}>
             <div style={{ width: "20px", height: "20px", borderRadius: "50%", backgroundColor: `${colors[params.row.id - 1]}` }} />
@@ -347,19 +325,19 @@ const NewAlignment: FC<AlignmentProps> = (AlignmentProps) => {
         )
       }
     },
-    { field: 'Xleft', headerName: 'X Left', width: 130, valueFormatter: valueFormat },
-    { field: 'Yleft', headerName: 'Y Left', width: 130, valueFormatter: valueFormat },
-    { field: 'Xright', headerName: 'X Right', width: 130, valueFormatter: valueFormat },
-    { field: 'Yright', headerName: 'Y Right', width: 130, valueFormatter: valueFormat },
+    { field: 'Xleft', headerName: 'X Left', width: 100, valueFormatter: valueFormat, align: 'right', headerAlign: 'right', disableColumnMenu: true },
+    { field: 'Yleft', headerName: 'Y Left', width: 100, valueFormatter: valueFormat, align: 'right', headerAlign: 'right', disableColumnMenu: true },
+    { field: 'Xright', headerName: 'X Right', width: 100, valueFormatter: valueFormat, align: 'right', headerAlign: 'right', disableColumnMenu: true },
+    { field: 'Yright', headerName: 'Y Right', width: 100, valueFormatter: valueFormat, align: 'right', headerAlign: 'right', disableColumnMenu: true },
   ];
 
-  const rows = [...new Array(Math.max(slices[index].points.length, slices[index + 1].points.length))].map((e, i) => {
+  const rows = [...new Array(Math.max(slices[leftSliceIndex].points.length, slices[rightSliceIndex].points.length))].map((e, i) => {
     return {
       id: i + 1,
-      Xleft: slices[index].points[i] ? slices[index].points[i].x : "NA",
-      Yleft: slices[index].points[i] ? slices[index].points[i].y : "NA",
-      Xright: slices[index + 1].points[i] ? slices[index + 1].points[i].x : "NA",
-      Yright: slices[index + 1].points[i] ? slices[index + 1].points[i].y : "NA",
+      Xleft: slices[leftSliceIndex].points[i] ? slices[leftSliceIndex].points[i].x : "NA",
+      Yleft: slices[leftSliceIndex].points[i] ? slices[leftSliceIndex].points[i].y : "NA",
+      Xright: slices[rightSliceIndex].points[i] ? slices[rightSliceIndex].points[i].x : "NA",
+      Yright: slices[rightSliceIndex].points[i] ? slices[rightSliceIndex].points[i].y : "NA",
     };
   });
 
@@ -378,13 +356,10 @@ const NewAlignment: FC<AlignmentProps> = (AlignmentProps) => {
         <Grid container spacing={2}>
           <Grid item container xs={12}>
             <Stack spacing={1} direction="row" style={{ padding: "15px", width: "100%", flex: "1 1 auto" }}>
+              {modeSelection}
+              <div style={{ width: "100%", flex: "1 1 auto" }} />
               {removeSelectedPoints}
               {removeAllPoints}
-              <div style={{ width: "100%", flex: "1 1 auto" }} />
-              {modeSlection}
-              <div style={{ width: "100%", flex: "1 1 auto" }} />
-              {compute}
-              {save}
             </Stack>
           </Grid>
           <Grid item container xs={12}>
@@ -393,16 +368,15 @@ const NewAlignment: FC<AlignmentProps> = (AlignmentProps) => {
               columns={columns}
               initialState={{
                 pagination: {
-                  paginationModel: { page: 0, pageSize: 5 },
+                  paginationModel: { page: 0, pageSize: 10 },
                 },
               }}
-              pageSizeOptions={[5, 10, 25, 50, 100]}
+              pageSizeOptions={[10, 25, 50, 100]}
               checkboxSelection
               rowSelectionModel={rowSelectionModel}
               onRowSelectionModelChange={(newSelection) => { setRowSelectionModel(newSelection); }}
               slots={{ noRowsOverlay: CustomNoRowsOverlay }}
-              autoHeight
-              sx={{ '--DataGrid-overlayHeight': '300px' }}
+              sx={{ height: 600 }}
             />
           </Grid>
         </Grid>
@@ -413,15 +387,13 @@ const NewAlignment: FC<AlignmentProps> = (AlignmentProps) => {
   return (
     <Grid item container xs={12} spacing={2}>
       <Grid item xs={3}>
-        {/* {leftImage} */}
-        {RenderImg(index)}
+        {RenderImg(leftSliceIndex, Direction.left)}
       </Grid>
       <Grid item xs={6}>
         {controlPanel}
       </Grid>
       <Grid item xs={3}>
-        {/* {rightImage} */}
-        {RenderImg(index + 1)}
+        {RenderImg(rightSliceIndex, Direction.right)}
       </Grid>
     </Grid>
   );

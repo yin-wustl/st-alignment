@@ -22,6 +22,8 @@ import HelpIcon from '@mui/icons-material/Help';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import DeleteIcon from '@mui/icons-material/Delete';
 import AdsClickIcon from '@mui/icons-material/AdsClick';
+import TuneIcon from '@mui/icons-material/Tune';
+import CalculateIcon from '@mui/icons-material/Calculate';
 
 import { MenuProps } from './Menu.lazy';
 
@@ -170,12 +172,23 @@ const Menu: FC<MenuProps> = (MenuProps) => {
           </ListItem>
         </List>
         <Divider />
+        <List>
+        {MenuProps.slices.length ? (
+          <ListItem key={0} disablePadding sx={{ display: 'block' }} onClick={e => { setTitle("Mix and Match"); handleNavigation("/alignment"); }}>
+            <ListItemButton sx={{ minHeight: 48, px: 2.5 }} >
+              <ListItemIcon sx={{ minWidth: 0, mr: 3 }}>
+                <TuneIcon />
+              </ListItemIcon>
+              <ListItemText primary={"Mix and Match"} />
+            </ListItemButton>
+          </ListItem>
+          ) : null}
         {[...new Array(Math.max(MenuProps.slices.length - 1, 0))].map((s, i) => {
           const title = "Alignment " + String(i + 1) + " and " + String(i + 2);
           const longTitle = "Alignment " + MenuProps.slices[i].name + " and " + MenuProps.slices[i + 1].name;
           return (
             <ListItem key={i} disablePadding sx={{ display: 'block' }} onClick={e => { setTitle(longTitle); handleNavigation(`/alignment-${i + 1}-and-${i + 2}`); }}>
-              <ListItemButton sx={{ minHeight: 48, px: 2.5 }} >
+              <ListItemButton sx={{ minHeight: 48, px: 2.5 }} disabled >
                 <ListItemIcon sx={{ minWidth: 0, mr: 3 }}>
                   <AdsClickIcon />
                 </ListItemIcon>
@@ -184,6 +197,19 @@ const Menu: FC<MenuProps> = (MenuProps) => {
             </ListItem>
           );
         })}
+        </List>
+        <Divider />
+        <List>
+          <ListItem key="compute" disablePadding sx={{ display: 'block' }} onClick={e => { setTitle("Compute"); handleNavigation("/compute"); }}>
+            <ListItemButton sx={{ minHeight: 48, px: 2.5 }} >
+              <ListItemIcon sx={{ minWidth: 0, mr: 3 }}>
+                <CalculateIcon />
+              </ListItemIcon>
+              <ListItemText primary="Compute" />
+            </ListItemButton>
+          </ListItem>
+        </List>
+
       </Drawer>
       <Box component="main" sx={{ flexGrow: 1, p: 3 }}>
         <DrawerHeader />

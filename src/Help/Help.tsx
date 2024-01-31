@@ -20,7 +20,7 @@ const Help: FC<HelpProps> = () => {
   return (
     <div>
       Help is on the way...
-      {rendered}
+      {/* {rendered} */}
     </div>
   );
 }

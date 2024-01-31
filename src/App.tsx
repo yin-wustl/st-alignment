@@ -7,6 +7,7 @@ import Home from './Home/Home.lazy';
 import Import from './Import/Import.lazy';
 import Menu from './Menu/Menu.lazy';
 import NewAlignment from './NewAlignment/NewAlignment.lazy';
+import Compute from './Compute/Compute.lazy';
 
 export type Point = {
   x: number,
@@ -35,6 +36,7 @@ export type Slice = {
 const App = () => {
   const [slices, setSlices] = React.useState<Slice[]>([]);
   const [colors, setColors] = React.useState<string[]>([]);
+  const [computed, setComputed] = React.useState<boolean>(false);
   const alignmentPaths = [...new Array(Math.max(slices.length - 1, 0))].map((s, i) => {
     return `/alignment-${i + 1}-and-${i + 2}`;
   });
@@ -42,13 +44,15 @@ const App = () => {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<Menu slices={slices} setSlices={setSlices}/>}>
+        <Route path="/" element={<Menu slices={slices} setSlices={setSlices} />}>
           <Route path="/" element={<Home />} />
           <Route path="/help" element={<Help />} />
           <Route path="/import" element={<Import slices={slices} setSlices={setSlices} />} />
           {alignmentPaths.map((path, i) => (
-            <Route key={i} path={path} element={<NewAlignment index={i} slices={slices} setSlices={setSlices} colors={colors} setColors={setColors} />} />
+            <Route key={i} path={path} element={<NewAlignment index={i} slices={slices} setSlices={setSlices} colors={colors} setColors={setColors} allowMixMatch={false} />} />
           ))}
+          <Route path="/alignment" element={<NewAlignment index={0} slices={slices} setSlices={setSlices} colors={colors} setColors={setColors} allowMixMatch={true} />} />
+          <Route path="/compute" element={<Compute slices={slices} setSlices={setSlices} computed={computed} setComputed={setComputed} />} />
         </Route>
       </Routes>
     </BrowserRouter>
