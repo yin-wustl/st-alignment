@@ -85,10 +85,10 @@ export const CustomNoRowsOverlay = () => (
   </StyledGridOverlay>
 );
 
-const defaultAlignment: Alignment = { theta: 0, px: 0, py: 0 };
-const defaultResolution = { width: 0, height: 0 };
-
 const Import: FC<ImportProps> = (ImportProps) => {
+  const slices = ImportProps.slices;
+  const setSlices = ImportProps.setSlices;
+
   const [rowSelectionModel, setRowSelectionModel] = React.useState<GridRowSelectionModel>([]);
 
   const handleImageUpload = async (file: File) => {
@@ -107,6 +107,28 @@ const Import: FC<ImportProps> = (ImportProps) => {
       reader.readAsDataURL(file);
     });
   }
+
+  const handleImageImport = (files: File[]) => {
+    const existingNumSlices = slices.length;
+    
+    const newSlices = Array.from(files).map(async (file, i) => {
+      const img = await handleImageUpload(file);
+      img.onload = () => {
+        const newSlices = [...slices];
+        newSlices[existingNumSlices + i].resolution = { width: img.naturalWidth, height: img.naturalHeight };
+        setSlices(newSlices);
+      };
+      return {
+        name: file.name,
+        image: img,
+        resolution: { width: 0, height: 0 },
+        alignment: { theta: 0, px: 0, py: 0 },
+      } as Slice;
+    });
+    Promise.all(newSlices).then((resolvedSlices) => {
+      setSlices([...slices, ...resolvedSlices]);
+    });
+  };
 
   const importOne = (
     <Box
@@ -127,7 +149,7 @@ const Import: FC<ImportProps> = (ImportProps) => {
             const name = file.name;
             const img = await handleImageUpload(file);
             const resolution = { width: img.naturalWidth, height: img.naturalHeight };
-            ImportProps.setSlices([...ImportProps.slices, { name: name, image: img, alignment: { theta: 0, px: 0, py: 0 }, resolution: resolution, points: [] }]);
+            setSlices([...slices, { name: name, image: img, alignment: { theta: 0, px: 0, py: 0 }, resolution: resolution, points: [] }]);
           }}
         />
       </Button>
@@ -158,7 +180,7 @@ const Import: FC<ImportProps> = (ImportProps) => {
               } as Slice;
             });
             const resolvedSlices = await Promise.all(newSlices);
-            ImportProps.setSlices([...ImportProps.slices, ...resolvedSlices]);
+            setSlices([...slices, ...resolvedSlices]);
           }}
         />
       </Button>
@@ -204,14 +226,10 @@ const Import: FC<ImportProps> = (ImportProps) => {
             },
           ];
           newSlices[0].image.src = img1;
-          newSlices[0].resolution = { width: newSlices[0].image.naturalWidth, height: newSlices[0].image.naturalHeight };
           newSlices[1].image.src = img2;
-          newSlices[1].resolution = { width: newSlices[1].image.naturalWidth, height: newSlices[1].image.naturalHeight };
           newSlices[2].image.src = img3;
-          newSlices[2].resolution = { width: newSlices[2].image.naturalWidth, height: newSlices[2].image.naturalHeight };
           newSlices[3].image.src = img4;
-          newSlices[3].resolution = { width: newSlices[3].image.naturalWidth, height: newSlices[3].image.naturalHeight };
-          ImportProps.setSlices(newSlices);
+          setSlices(newSlices);
         }}>
         Use Demo
       </Button>
@@ -226,8 +244,8 @@ const Import: FC<ImportProps> = (ImportProps) => {
       }}>
       <Button fullWidth variant="contained" color="warning" size="small" style={{ textTransform: 'none', whiteSpace: 'nowrap' }} startIcon={<RemoveIcon />}
         onClick={e => {
-          const newSlices = ImportProps.slices.filter((e, i) => !rowSelectionModel.includes(i + 1));
-          ImportProps.setSlices(newSlices);
+          const newSlices = slices.filter((e, i) => !rowSelectionModel.includes(i + 1));
+          setSlices(newSlices);
           setRowSelectionModel([]);
         }}>Remove Selected</Button>
     </Box>
@@ -241,7 +259,7 @@ const Import: FC<ImportProps> = (ImportProps) => {
       }}>
       <Button fullWidth variant="contained" color="error" size="small" style={{ textTransform: 'none', whiteSpace: 'nowrap' }} startIcon={<DeleteIcon />}
         onClick={e => {
-          ImportProps.setSlices([]);
+          setSlices([]);
         }}>Remove All</Button>
     </Box>
   );
@@ -262,7 +280,7 @@ const Import: FC<ImportProps> = (ImportProps) => {
     { field: 'name', headerName: 'Name', width: 500 },
   ];
 
-  const rows = [...ImportProps.slices].map((e, i) => {
+  const rows = [...slices].map((e, i) => {
     return {
       id: i + 1,
       name: e.name,
@@ -297,7 +315,6 @@ const Import: FC<ImportProps> = (ImportProps) => {
       </Grid>
       <Grid item xs={12}>
         {table}
-        {/* {ImportProps.slices.map((e, i) => e.image && (<img key={i} src={e.image.src} alt={e.name} />))} */}
       </Grid>
     </Grid>
   );

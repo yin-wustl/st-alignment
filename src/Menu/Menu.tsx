@@ -24,6 +24,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import AdsClickIcon from '@mui/icons-material/AdsClick';
 import TuneIcon from '@mui/icons-material/Tune';
 import CalculateIcon from '@mui/icons-material/Calculate';
+import PreviewIcon from '@mui/icons-material/Preview';
 
 import { MenuProps } from './Menu.lazy';
 
@@ -100,6 +101,8 @@ const Drawer = styled(MuiDrawer, { shouldForwardProp: (prop) => prop !== 'open' 
 
 const Menu: FC<MenuProps> = (MenuProps) => {
   const theme = useTheme();
+  const slices = MenuProps.slices;
+  const computed = MenuProps.computed;
   const [open, setOpen] = React.useState(false);
   const [title, setTitle] = React.useState('Home');
 
@@ -120,6 +123,7 @@ const Menu: FC<MenuProps> = (MenuProps) => {
       <AppBar position="fixed" open={open}>
         <Toolbar>
           <IconButton
+            id="open-menu"
             color="inherit"
             aria-label="open drawer"
             onClick={handleDrawerOpen}
@@ -139,7 +143,7 @@ const Menu: FC<MenuProps> = (MenuProps) => {
 
       <Drawer variant="permanent" open={open}>
         <DrawerHeader>
-          <IconButton onClick={handleDrawerClose}>
+          <IconButton id="close-menu" onClick={handleDrawerClose}>
             {theme.direction === 'rtl' ? <ChevronRightIcon /> : <ChevronLeftIcon />}
           </IconButton>
         </DrawerHeader>
@@ -173,30 +177,30 @@ const Menu: FC<MenuProps> = (MenuProps) => {
         </List>
         <Divider />
         <List>
-        {MenuProps.slices.length ? (
-          <ListItem key={0} disablePadding sx={{ display: 'block' }} onClick={e => { setTitle("Mix and Match"); handleNavigation("/alignment"); }}>
-            <ListItemButton sx={{ minHeight: 48, px: 2.5 }} >
-              <ListItemIcon sx={{ minWidth: 0, mr: 3 }}>
-                <TuneIcon />
-              </ListItemIcon>
-              <ListItemText primary={"Mix and Match"} />
-            </ListItemButton>
-          </ListItem>
-          ) : null}
-        {[...new Array(Math.max(MenuProps.slices.length - 1, 0))].map((s, i) => {
-          const title = "Alignment " + String(i + 1) + " and " + String(i + 2);
-          const longTitle = "Alignment " + MenuProps.slices[i].name + " and " + MenuProps.slices[i + 1].name;
-          return (
-            <ListItem key={i} disablePadding sx={{ display: 'block' }} onClick={e => { setTitle(longTitle); handleNavigation(`/alignment-${i + 1}-and-${i + 2}`); }}>
-              <ListItemButton sx={{ minHeight: 48, px: 2.5 }} disabled >
+          {slices.length ? (
+            <ListItem key={0} disablePadding sx={{ display: 'block' }} onClick={e => { setTitle("Mix and Match"); handleNavigation("/alignment"); }}>
+              <ListItemButton sx={{ minHeight: 48, px: 2.5 }} >
                 <ListItemIcon sx={{ minWidth: 0, mr: 3 }}>
-                  <AdsClickIcon />
+                  <TuneIcon />
                 </ListItemIcon>
-                <ListItemText primary={title} />
+                <ListItemText primary={"Mix and Match"} />
               </ListItemButton>
             </ListItem>
-          );
-        })}
+          ) : null}
+          {[...new Array(Math.max(slices.length - 1, 0))].map((s, i) => {
+            const title = "Alignment " + String(i + 1) + " and " + String(i + 2);
+            const longTitle = "Alignment " + slices[i].name + " and " + slices[i + 1].name;
+            return (
+              <ListItem key={i} disablePadding sx={{ display: 'block' }} onClick={e => { setTitle(longTitle); handleNavigation(`/alignment-${i + 1}-and-${i + 2}`); }}>
+                <ListItemButton sx={{ minHeight: 48, px: 2.5 }} disabled >
+                  <ListItemIcon sx={{ minWidth: 0, mr: 3 }}>
+                    <AdsClickIcon />
+                  </ListItemIcon>
+                  <ListItemText primary={title} />
+                </ListItemButton>
+              </ListItem>
+            );
+          })}
         </List>
         <Divider />
         <List>
@@ -208,6 +212,20 @@ const Menu: FC<MenuProps> = (MenuProps) => {
               <ListItemText primary="Compute" />
             </ListItemButton>
           </ListItem>
+          {[...new Array(Math.max(slices.length - 1, 0))].map((s, i) => {
+            const title = "Preview " + String(i + 1) + " and " + String(i + 2);
+            const longTitle = "Preview " + slices[i].name + " and " + slices[i + 1].name;
+            return (
+              <ListItem key={i} disablePadding sx={{ display: 'block' }} onClick={e => { setTitle(longTitle); handleNavigation(`/preview-${i + 1}-and-${i + 2}`); }}>
+                <ListItemButton sx={{ minHeight: 48, px: 2.5 }} disabled={!computed} >
+                  <ListItemIcon sx={{ minWidth: 0, mr: 3 }}>
+                    <PreviewIcon />
+                  </ListItemIcon>
+                  <ListItemText primary={title} />
+                </ListItemButton>
+              </ListItem>
+            );
+          })}
         </List>
 
       </Drawer>

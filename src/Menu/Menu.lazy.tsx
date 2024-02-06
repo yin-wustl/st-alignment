@@ -3,7 +3,7 @@ import { Slice } from '../App';
 
 export interface MenuProps {
   slices: Slice[];
-  setSlices: (slices: Slice[]) => void;
+  computed: boolean;
 }
 
 const LazyMenu = lazy(() => import('./Menu'));

@@ -31,66 +31,6 @@ import { StyledGridOverlay, CustomNoRowsOverlay } from '../Import/Import';
 const enum Mode { add, remove, move, off };
 const enum Direction { left, right };
 
-const saveFile = (href: string, filename: string) => {
-  const link = document.createElement("a");
-  link.href = href;
-  link.download = filename;
-  document.body.appendChild(link);
-  link.click();
-
-  document.body.removeChild(link);
-  URL.revokeObjectURL(href);
-};
-
-const centroid = (points: Point[]) => {
-  let x = 0;
-  let y = 0;
-  points.forEach((p) => {
-    x += p.x;
-    y += p.y;
-  });
-  return { x: x / points.length, y: y / points.length };
-}
-
-const translate = (points: Point[], centroid: { x: number, y: number }) => {
-  return points.map((p) => {
-    return { x: p.x - centroid.x, y: p.y - centroid.y };
-  });
-}
-
-const pointsToMatrix = (points: Point[]) => {
-  const m = new Matrix(points.length, 2);
-  points.forEach((p, i) => {
-    m.set(i, 0, p.x);
-    m.set(i, 1, p.y);
-  });
-  return m;
-}
-
-const computeTransformation = (left: Point[], right: Point[]) => {
-  const leftCentroid = centroid(left);
-  const rightCentroid = centroid(right);
-  const translation = { x: leftCentroid.x - rightCentroid.x, y: leftCentroid.y - rightCentroid.y };
-  const leftTranslated = translate(left, leftCentroid);
-  const rightTranslated = translate(right, rightCentroid);
-  const P = pointsToMatrix(leftTranslated);
-  const Q = pointsToMatrix(rightTranslated);
-  const H = P.transpose().mmul(Q);
-  const svd = new SVD(H);
-  const U = svd.leftSingularVectors;
-  const V = svd.rightSingularVectors;
-  const d = Math.sign(determinant(V.mmul(U.transpose())));
-  const newDiag = new Matrix([[1, 0], [0, d]]);
-  const R = V.mmul(newDiag).mmul(U.transpose());
-  return { R, translation };
-}
-
-const rotationMatrixToAngle = (R: Matrix) => {
-  const theta = Math.atan2(R.get(1, 0), R.get(0, 0));
-  const angle = theta * 180 / Math.PI;
-  return angle;
-}
-
 export const valueFormat = (params: GridValueFormatterParams<number>) => {
   return params.value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
 }
@@ -138,11 +78,7 @@ const NewAlignment: FC<AlignmentProps> = (AlignmentProps) => {
 
   const handleClick = (event: React.MouseEvent<HTMLImageElement>, sliceIndex: number) => {
     if (mode === Mode.add) {
-      // TODO: add point to other slices if such point index does not exist there
-      const maxPoints = slices.map((s) => { return s.points.length; }).reduce((a, b) => { return Math.max(a, b); });
-      if (slices[sliceIndex].points.length === maxPoints) {
-        setColors([...colors, generateDistinctColor(colors)]);
-      }
+      setColors([...colors, generateDistinctColor(colors)]);
       const img = event.currentTarget;
       const rect = img.getBoundingClientRect();
       const widthScale = img.clientWidth / img.naturalWidth;
@@ -150,27 +86,25 @@ const NewAlignment: FC<AlignmentProps> = (AlignmentProps) => {
       const x = (event.clientX - rect.left) / widthScale;
       const y = (event.clientY - rect.top) / heightScale;
       const newSlices = [...slices];
-      newSlices[sliceIndex].points.push({ x: x, y: y });
       newSlices.forEach((s, i) => {
-        if (s.points.length < newSlices[sliceIndex].points.length) {
-          s.points.push({ x: x, y: y });
-        }
+        s.points.push({ x: x, y: y });
       });
       setSlices(newSlices);
     } else if (mode === Mode.remove) {
 
-    } else if (mode === Mode.move) {
-
     }
   };
 
-  const renderPoints = (imgRef: React.RefObject<HTMLImageElement>, sliceIndex: number) => {
+  const RenderPoints = (imgRef: React.RefObject<HTMLImageElement>, sliceIndex: number) => {
     const rect = imgRef.current?.getBoundingClientRect();
-    const widthScale = (imgRef.current?.clientWidth ?? 1) / (imgRef.current?.naturalWidth ?? 1);
-    const heightScale = (imgRef.current?.clientHeight ?? 1) / (imgRef.current?.naturalHeight ?? 1);
+    const width = imgRef.current?.naturalWidth ?? 1;
+    const height = imgRef.current?.naturalHeight ?? 1;
+    const widthOnScreen = imgRef.current?.clientWidth ?? 1;
+    const heightOnScreen = imgRef.current?.clientHeight ?? 1;
+
     return slices[sliceIndex].points.map((p, i) =>
-    (<div key={`image-${sliceIndex}-point-${i}`}
-      style={{ position: "absolute", left: p.x * widthScale, top: p.y * heightScale, width: "10px", height: "10px", borderRadius: "50%", transform: "translate(-50%, -50%)", backgroundColor: `${colors[i]}`, border: "1px solid white" }}
+    (<div key={`image-${sliceIndex}-point-${i}`} id={`image-${sliceIndex}-point-${i}`}
+      style={{ position: "absolute", left: `${p.x / width * 100}%`, top: `${p.y / height * 100}%`, width: "10px", height: "10px", borderRadius: "50%", transform: "translate(-50%, -50%)", backgroundColor: `${colors[i]}`, border: "1px solid white" }}
       onClick={e => {
         if (mode === Mode.add) {
           if (!rowSelectionModel.includes(i + 1)) {
@@ -186,7 +120,6 @@ const NewAlignment: FC<AlignmentProps> = (AlignmentProps) => {
           // FIXME: this is not working
           const newRowSelectionModel = [i + 1];
           setRowSelectionModel(newRowSelectionModel);
-          console.log(rowSelectionModel);
           removePoints();
         }
       }}
@@ -199,8 +132,8 @@ const NewAlignment: FC<AlignmentProps> = (AlignmentProps) => {
       }}
       onDrag={e => {
         e.preventDefault();
-        const x = (e.clientX - (rect?.left ?? 0)) / widthScale;
-        const y = (e.clientY - (rect?.top ?? 0)) / heightScale;
+        const x = (e.clientX - (rect?.left ?? 0)) / (widthOnScreen / width);
+        const y = (e.clientY - (rect?.top ?? 0)) / (heightOnScreen / height);
         const newPoints = [...slices[sliceIndex].points];
         newPoints[i] = { x: x, y: y };
         const newSlices = [...slices];
@@ -213,6 +146,7 @@ const NewAlignment: FC<AlignmentProps> = (AlignmentProps) => {
 
   const RenderImg = (sliceIndex: number, location: Direction) => {
     const imgRef = React.useRef<HTMLImageElement>(null);
+
     return (
       <Box>
         <Paper
@@ -228,10 +162,11 @@ const NewAlignment: FC<AlignmentProps> = (AlignmentProps) => {
           }}
         >
           <img id={`img-${sliceIndex}`} ref={imgRef} src={slices[sliceIndex].image.src} style={{ width: "100%", height: "100%", objectFit: "contain" }}
+            alt='something must went wrong...'
             onClick={(e) => {
               handleClick(e, sliceIndex);
             }} />
-          {renderPoints(imgRef, sliceIndex)}
+          {RenderPoints(imgRef, sliceIndex)}
         </Paper>
         <Stack
           direction="row"
@@ -256,7 +191,7 @@ const NewAlignment: FC<AlignmentProps> = (AlignmentProps) => {
                 },
               }}
             >
-              {slices.map((s, i) => (<MenuItem value={i}>{s.name}</MenuItem>))}
+              {slices.map((s, i) => (<MenuItem value={i} key={i}>{s.name}</MenuItem>))}
             </Select>
           </FormControl>
         </Stack>
