@@ -146,6 +146,11 @@ const NewAlignment: FC<AlignmentProps> = (AlignmentProps) => {
 
   const RenderImg = (sliceIndex: number, location: Direction) => {
     const imgRef = React.useRef<HTMLImageElement>(null);
+    const [imageLoaded, setImageLoaded] = React.useState(false);
+
+    const handleImageLoad = () => {
+      setImageLoaded(true);
+    };
 
     return (
       <Box>
@@ -163,10 +168,11 @@ const NewAlignment: FC<AlignmentProps> = (AlignmentProps) => {
         >
           <img id={`img-${sliceIndex}`} ref={imgRef} src={slices[sliceIndex].image.src} style={{ width: "100%", height: "100%", objectFit: "contain" }}
             alt='something must went wrong...'
+            onLoad={handleImageLoad}
             onClick={(e) => {
               handleClick(e, sliceIndex);
             }} />
-          {RenderPoints(imgRef, sliceIndex)}
+          {imageLoaded && RenderPoints(imgRef, sliceIndex)}
         </Paper>
         <Stack
           direction="row"
