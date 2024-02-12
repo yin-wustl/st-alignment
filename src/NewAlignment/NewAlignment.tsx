@@ -12,13 +12,12 @@ import {
   InputLabel,
   Select,
   MenuItem,
+  Tabs,
+  Tab,
 } from "@mui/material";
-import AddIcon from '@mui/icons-material/Add';
+import { TabContext, TabList, TabPanel } from '@mui/lab';
 import RemoveIcon from '@mui/icons-material/Remove';
-import CalculateIcon from '@mui/icons-material/Calculate';
 import DeleteIcon from '@mui/icons-material/Delete';
-import SaveIcon from '@mui/icons-material/Save';
-import OpenWithIcon from '@mui/icons-material/OpenWith';
 import DoNotTouchIcon from '@mui/icons-material/DoNotTouch';
 import TouchAppIcon from '@mui/icons-material/TouchApp';
 import { DataGrid, GridColDef, GridValueGetterParams, GridRenderCellParams, GridRowSelectionModel, GridValueFormatterParams } from '@mui/x-data-grid';
@@ -33,6 +32,56 @@ const enum Direction { left, right };
 
 export const valueFormat = (params: GridValueFormatterParams<number>) => {
   return params.value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+}
+
+const centroid = (points: Point[]) => {
+  let x = 0;
+  let y = 0;
+  points.forEach((p) => {
+    x += p.x;
+    y += p.y;
+  });
+  return { x: x / points.length, y: y / points.length };
+}
+
+const translate = (points: Point[], centroid: { x: number, y: number }) => {
+  return points.map((p) => {
+    return { x: p.x - centroid.x, y: p.y - centroid.y };
+  });
+}
+
+const pointsToMatrix = (points: Point[]) => {
+  const m = new Matrix(points.length, 2);
+  points.forEach((p, i) => {
+    m.set(i, 0, p.x);
+    m.set(i, 1, p.y);
+  });
+  return m;
+}
+
+const computeTransformation = (left: Point[], right: Point[]) => {
+  const leftCentroid = centroid(left);
+  const rightCentroid = centroid(right);
+  const translation = { x: leftCentroid.x - rightCentroid.x, y: leftCentroid.y - rightCentroid.y };
+  const leftTranslated = translate(left, leftCentroid);
+  const rightTranslated = translate(right, rightCentroid);
+  const P = pointsToMatrix(leftTranslated);
+  const Q = pointsToMatrix(rightTranslated);
+  const H = P.transpose().mmul(Q);
+  const svd = new SVD(H);
+  const U = svd.leftSingularVectors;
+  const Sigma = svd.diagonal;
+  const V = svd.rightSingularVectors;
+  const d = Math.sign(determinant(V.mmul(U.transpose())));
+  const newDiag = new Matrix([[1, 0], [0, d]]);
+  const R = V.mmul(newDiag).mmul(U.transpose());
+  return { R, translation };
+}
+
+const rotationMatrixToAngle = (R: Matrix) => {
+  const theta = Math.atan2(R.get(1, 0), R.get(0, 0));
+  const angle = theta * 180 / Math.PI;
+  return angle;
 }
 
 const generateDistinctColor = (colorSequence: string[]) => {
@@ -55,11 +104,36 @@ const NewAlignment: FC<AlignmentProps> = (AlignmentProps) => {
 
   const [leftSliceIndex, setLeftSliceIndex] = React.useState<number>(index);
   const [rightSliceIndex, setRightSliceIndex] = React.useState<number>(index + 1);
-
+  const [transform, setTransform] = React.useState({ x: 0, y: 0, rotation: 0 });
   const [rowSelectionModel, setRowSelectionModel] = React.useState<GridRowSelectionModel>([]);
+
+  const [tabValue, setTabValue] = React.useState('1');
+  const handleChange = (event: React.SyntheticEvent, newValue: string) => { setTabValue(newValue); };
 
   const [mode, setMode] = React.useState<Mode>(Mode.add);
   const handleModeChange = (event: React.MouseEvent<HTMLElement>, newMode: Mode) => { setMode(newMode); };
+
+  React.useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Shift') {
+        setMode(Mode.remove);
+      }
+    };
+
+    const handleKeyUp = (event: KeyboardEvent) => {
+      if (event.key === 'Shift') {
+        setMode(Mode.add);
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    window.addEventListener('keyup', handleKeyUp);
+
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      window.removeEventListener('keyup', handleKeyUp);
+    };
+  }, []);
 
   const removePoints = () => {
     const newSlices = [...slices]
@@ -117,10 +191,17 @@ const NewAlignment: FC<AlignmentProps> = (AlignmentProps) => {
             setRowSelectionModel(newRowSelectionModel);
           }
         } else if (mode === Mode.remove) {
-          // FIXME: this is not working
-          const newRowSelectionModel = [i + 1];
-          setRowSelectionModel(newRowSelectionModel);
-          removePoints();
+          const newSlices = [...slices];
+          newSlices.forEach((s) => {
+            s.points = s.points.filter((p, j) => {
+              return j !== i;
+            });
+          });
+          const newColors = [...colors];
+          newColors.splice(i, 1);
+          setSlices(newSlices);
+          setRowSelectionModel([]);
+          setColors(newColors);
         }
       }}
       draggable={true}
@@ -203,7 +284,52 @@ const NewAlignment: FC<AlignmentProps> = (AlignmentProps) => {
         </Stack>
       </Box >
     );
-  }
+  };
+
+  const RenderPreview = () => {
+    const previewRef = React.useRef<HTMLImageElement>(null);
+    const leftPoints = slices[leftSliceIndex].points;
+    const rightPoints = slices[rightSliceIndex].points;
+    const res = computeTransformation(leftPoints, rightPoints);
+    const angle = rotationMatrixToAngle(res.R);
+
+    React.useEffect(() => {
+      setTransform({
+        x: res.translation.x * (previewRef.current?.clientWidth ?? 0) / (previewRef.current?.naturalWidth ?? 1),
+        y: res.translation.y * (previewRef.current?.clientHeight ?? 0) / (previewRef.current?.naturalHeight ?? 1),
+        rotation: angle,
+      });
+    }, [leftPoints, rightPoints]);
+
+    return (
+      <Box sx={{
+        width: "600px",
+        height: "600px",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        position: "absolute",
+      }}>
+        <img
+          id={`preview-${index}`}
+          src={slices[leftSliceIndex].image.src}
+          style={{ width: "100%", height: "100%", objectFit: "contain", position: "absolute", opacity: 0.5 }}
+          alt="something must went wrong..."
+        />
+        <img
+          id={`preview-${index + 1}`}
+          src={slices[rightSliceIndex].image.src}
+          ref={previewRef}
+          // onLoad={e => setImageLoaded(true)}
+          style={{
+            width: "100%", height: "100%", objectFit: "contain", position: "absolute", opacity: 0.5,
+            transform: `translate(${transform.x}px, ${transform.y}px) rotate(${transform.rotation}deg)`,
+          }}
+          alt="something must went wrong..."
+        />
+      </Box>
+    );
+  };
 
   const removeSelectedPoints = (
     <Box
@@ -290,7 +416,7 @@ const NewAlignment: FC<AlignmentProps> = (AlignmentProps) => {
           height: "100%",
           width: "100%",
           display: "flex",
-          alignItems: "center",
+          alignItems: "flex-start",
           justifyContent: "center",
         }}
       >
@@ -304,21 +430,36 @@ const NewAlignment: FC<AlignmentProps> = (AlignmentProps) => {
             </Stack>
           </Grid>
           <Grid item container xs={12}>
-            <DataGrid
-              rows={rows}
-              columns={columns}
-              initialState={{
-                pagination: {
-                  paginationModel: { page: 0, pageSize: 10 },
-                },
-              }}
-              pageSizeOptions={[10, 25, 50, 100]}
-              checkboxSelection
-              rowSelectionModel={rowSelectionModel}
-              onRowSelectionModelChange={(newSelection) => { setRowSelectionModel(newSelection); }}
-              slots={{ noRowsOverlay: CustomNoRowsOverlay }}
-              sx={{ height: 600 }}
-            />
+            <Box sx={{ width: '100%' }}>
+              <TabContext value={tabValue}>
+                <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
+                  <Tabs value={tabValue} onChange={handleChange} aria-label="basic tabs example">
+                    <Tab label="Preview" value="1" />
+                    <Tab label="Debug" value="2" />
+                  </Tabs>
+                </Box>
+                <TabPanel value="1">
+                  {RenderPreview()}
+                </TabPanel>
+                <TabPanel value="2">
+                  <DataGrid
+                    rows={rows}
+                    columns={columns}
+                    initialState={{
+                      pagination: {
+                        paginationModel: { page: 0, pageSize: 10 },
+                      },
+                    }}
+                    pageSizeOptions={[10, 25, 50, 100]}
+                    checkboxSelection
+                    rowSelectionModel={rowSelectionModel}
+                    onRowSelectionModelChange={(newSelection) => { setRowSelectionModel(newSelection); }}
+                    slots={{ noRowsOverlay: CustomNoRowsOverlay }}
+                    sx={{ height: 600 }}
+                  />
+                </TabPanel>
+              </TabContext>
+            </Box>
           </Grid>
         </Grid>
       </Paper>
