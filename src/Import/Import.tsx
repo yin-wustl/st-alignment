@@ -177,9 +177,12 @@ const Import: FC<ImportProps> = (ImportProps) => {
                 name: file.name,
                 image: await handleImageUpload(file),
                 alignment: { theta: 0, px: 0, py: 0 },
+                resolution: { width: 0, height: 0 },
+                points: []
               } as Slice;
             });
             const resolvedSlices = await Promise.all(newSlices);
+            console.log(resolvedSlices.length);
             setSlices([...slices, ...resolvedSlices]);
           }}
         />

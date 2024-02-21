@@ -14,6 +14,7 @@ import {
   MenuItem,
   Tabs,
   Tab,
+  Slider,
 } from "@mui/material";
 import { TabContext, TabList, TabPanel } from '@mui/lab';
 import RemoveIcon from '@mui/icons-material/Remove';
@@ -106,6 +107,7 @@ const NewAlignment: FC<AlignmentProps> = (AlignmentProps) => {
   const [rightSliceIndex, setRightSliceIndex] = React.useState<number>(index + 1);
   const [transform, setTransform] = React.useState({ x: 0, y: 0, rotation: 0 });
   const [rowSelectionModel, setRowSelectionModel] = React.useState<GridRowSelectionModel>([]);
+  const [opacity, setOpacity] = React.useState(0.5);
 
   const [tabValue, setTabValue] = React.useState('1');
   const handleChange = (event: React.SyntheticEvent, newValue: string) => { setTabValue(newValue); };
@@ -313,16 +315,15 @@ const NewAlignment: FC<AlignmentProps> = (AlignmentProps) => {
         <img
           id={`preview-${index}`}
           src={slices[leftSliceIndex].image.src}
-          style={{ width: "100%", height: "100%", objectFit: "contain", position: "absolute", opacity: 0.5 }}
+          style={{ width: "100%", height: "100%", objectFit: "contain", position: "absolute", opacity: opacity }}
           alt="something must went wrong..."
         />
         <img
           id={`preview-${index + 1}`}
           src={slices[rightSliceIndex].image.src}
           ref={previewRef}
-          // onLoad={e => setImageLoaded(true)}
           style={{
-            width: "100%", height: "100%", objectFit: "contain", position: "absolute", opacity: 0.5,
+            width: "100%", height: "100%", objectFit: "contain", position: "absolute", opacity: 1 - opacity,
             transform: `translate(${transform.x}px, ${transform.y}px) rotate(${transform.rotation}deg)`,
           }}
           alt="something must went wrong..."
@@ -331,25 +332,12 @@ const NewAlignment: FC<AlignmentProps> = (AlignmentProps) => {
     );
   };
 
-  const removeSelectedPoints = (
-    <Box
-      sx={{
-        display: "flex",
-        justifyContent: "flex-beginning",
-      }}>
+  const buttons = (
+    <Stack spacing={1} direction="row" style={{ padding: "15px", width: "100%", flex: "1 1 auto" }}>
       <Button fullWidth variant="contained" color="warning" size="small" style={{ textTransform: 'none', whiteSpace: 'nowrap' }} startIcon={<RemoveIcon />}
         onClick={e => {
           removePoints();
         }}>Remove Selected</Button>
-    </Box>
-  );
-
-  const removeAllPoints = (
-    <Box
-      sx={{
-        display: "flex",
-        justifyContent: "flex-beginning",
-      }}>
       <Button fullWidth variant="contained" color="error" size="small" style={{ textTransform: 'none', whiteSpace: 'nowrap' }} startIcon={<DeleteIcon />}
         onClick={e => {
           const newSlices = [...slices]
@@ -358,28 +346,50 @@ const NewAlignment: FC<AlignmentProps> = (AlignmentProps) => {
           setRowSelectionModel([]);
           setColors([]);
         }}>Remove All</Button>
-    </Box>
+    </Stack>
   );
 
   const modeSelection = (
-    <ToggleButtonGroup
-      value={mode}
-      exclusive
-      onChange={handleModeChange}
-      aria-label="text alignment"
-      size='small'
-    >
-      <ToggleButton value={Mode.add}>
-        <TouchAppIcon />
-      </ToggleButton>
-      <ToggleButton value={Mode.remove}>
-        <DeleteIcon />
-      </ToggleButton>
-      <ToggleButton value={Mode.off}>
-        <DoNotTouchIcon />
-      </ToggleButton>
-    </ToggleButtonGroup >
-  )
+    <Box>
+      <ToggleButtonGroup
+        value={mode}
+        exclusive
+        onChange={handleModeChange}
+        aria-label="text alignment"
+        size='small'
+      >
+        <ToggleButton value={Mode.add}>
+          <TouchAppIcon />
+        </ToggleButton>
+        <ToggleButton value={Mode.remove}>
+          <DeleteIcon />
+        </ToggleButton>
+        <ToggleButton value={Mode.off}>
+          <DoNotTouchIcon />
+        </ToggleButton>
+      </ToggleButtonGroup >
+    </Box>
+  );
+
+  const opacitySlider = (
+    <Box sx={{ width: '300px' }}>
+      <Slider size="small" aria-label="Volume" value={opacity} min={0.0} max={1.0} step={0.01} valueLabelDisplay="auto" onChange={(e, val) => setOpacity(val as number)} style={{ width: '300px' }} />
+      <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
+        <Typography
+          variant="body2"
+          sx={{ cursor: 'pointer' }}
+        >
+          Left
+        </Typography>
+        <Typography
+          variant="body2"
+          sx={{ cursor: 'pointer' }}
+        >
+          Right
+        </Typography>
+      </Box>
+    </Box>
+  );
 
   const columns: GridColDef[] = [
     { field: 'id', headerName: '#', width: 70, disableColumnMenu: true },
@@ -425,8 +435,9 @@ const NewAlignment: FC<AlignmentProps> = (AlignmentProps) => {
             <Stack spacing={1} direction="row" style={{ padding: "15px", width: "100%", flex: "1 1 auto" }}>
               {modeSelection}
               <div style={{ width: "100%", flex: "1 1 auto" }} />
-              {removeSelectedPoints}
-              {removeAllPoints}
+              {opacitySlider}
+              <div style={{ width: "100%", flex: "1 1 auto" }} />
+              {buttons}
             </Stack>
           </Grid>
           <Grid item container xs={12}>
