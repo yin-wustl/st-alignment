@@ -178,16 +178,16 @@ const Menu: FC<MenuProps> = (MenuProps) => {
         <Divider />
         <List>
           {slices.length ? (
-            <ListItem key={0} disablePadding sx={{ display: 'block' }} onClick={e => { setTitle("Mix and Match"); handleNavigation("/alignment"); }}>
+            <ListItem key={0} disablePadding sx={{ display: 'block' }} onClick={e => { setTitle("Alignment"); handleNavigation("/alignment"); }}>
               <ListItemButton sx={{ minHeight: 48, px: 2.5 }} >
                 <ListItemIcon sx={{ minWidth: 0, mr: 3 }}>
                   <TuneIcon />
                 </ListItemIcon>
-                <ListItemText primary={"Mix and Match"} />
+                <ListItemText primary={"Alignment"} />
               </ListItemButton>
             </ListItem>
           ) : null}
-          {[...new Array(Math.max(slices.length - 1, 0))].map((s, i) => {
+          {/* {[...new Array(Math.max(slices.length - 1, 0))].map((s, i) => {
             const title = "Alignment " + String(i + 1) + " and " + String(i + 2);
             const longTitle = "Alignment " + slices[i].name + " and " + slices[i + 1].name;
             return (
@@ -200,10 +200,10 @@ const Menu: FC<MenuProps> = (MenuProps) => {
                 </ListItemButton>
               </ListItem>
             );
-          })}
-        </List>
+          })} */}
+        {/* </List>
         <Divider />
-        <List>
+        <List> */}
           <ListItem key="compute" disablePadding sx={{ display: 'block' }} onClick={e => { setTitle("Compute"); handleNavigation("/compute"); }}>
             <ListItemButton sx={{ minHeight: 48, px: 2.5 }} >
               <ListItemIcon sx={{ minWidth: 0, mr: 3 }}>
@@ -212,7 +212,7 @@ const Menu: FC<MenuProps> = (MenuProps) => {
               <ListItemText primary="Compute" />
             </ListItemButton>
           </ListItem>
-          {[...new Array(Math.max(slices.length - 1, 0))].map((s, i) => {
+          {/* {[...new Array(Math.max(slices.length - 1, 0))].map((s, i) => {
             const title = "Preview " + String(i + 1) + " and " + String(i + 2);
             const longTitle = "Preview " + slices[i].name + " and " + slices[i + 1].name;
             return (
@@ -225,7 +225,7 @@ const Menu: FC<MenuProps> = (MenuProps) => {
                 </ListItemButton>
               </ListItem>
             );
-          })}
+          })} */}
         </List>
 
       </Drawer>

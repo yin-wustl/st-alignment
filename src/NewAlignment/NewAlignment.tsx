@@ -15,12 +15,14 @@ import {
   Tabs,
   Tab,
   Slider,
+  Fab,
 } from "@mui/material";
 import { TabContext, TabList, TabPanel } from '@mui/lab';
 import RemoveIcon from '@mui/icons-material/Remove';
 import DeleteIcon from '@mui/icons-material/Delete';
 import DoNotTouchIcon from '@mui/icons-material/DoNotTouch';
 import TouchAppIcon from '@mui/icons-material/TouchApp';
+import OpenWithIcon from '@mui/icons-material/OpenWith';
 import { DataGrid, GridColDef, GridValueGetterParams, GridRenderCellParams, GridRowSelectionModel, GridValueFormatterParams } from '@mui/x-data-grid';
 import { Matrix, SVD, determinant } from 'ml-matrix';
 
@@ -108,6 +110,7 @@ const NewAlignment: FC<AlignmentProps> = (AlignmentProps) => {
   const [transform, setTransform] = React.useState({ x: 0, y: 0, rotation: 0 });
   const [rowSelectionModel, setRowSelectionModel] = React.useState<GridRowSelectionModel>([]);
   const [opacity, setOpacity] = React.useState(0.5);
+  const [zoom, setZoom] = React.useState(1);
 
   const [tabValue, setTabValue] = React.useState('1');
   const handleChange = (event: React.SyntheticEvent, newValue: string) => { setTabValue(newValue); };
@@ -150,6 +153,14 @@ const NewAlignment: FC<AlignmentProps> = (AlignmentProps) => {
     setSlices(newSlices);
     setRowSelectionModel([]);
     setColors(newColors);
+  };
+
+  const removeAllPoints = () => {
+    const newSlices = [...slices]
+    newSlices.forEach((s) => { s.points = []; });
+    setSlices(newSlices);
+    setRowSelectionModel([]);
+    setColors([]);
   };
 
   const handleClick = (event: React.MouseEvent<HTMLImageElement>, sliceIndex: number) => {
@@ -230,6 +241,21 @@ const NewAlignment: FC<AlignmentProps> = (AlignmentProps) => {
   const RenderImg = (sliceIndex: number, location: Direction) => {
     const imgRef = React.useRef<HTMLImageElement>(null);
     const [imageLoaded, setImageLoaded] = React.useState(false);
+    const [dragging, setDragging] = React.useState(false);
+    const [position, setPosition] = React.useState({ x: 0, y: 0 });
+
+    const handleDragStart = (event: React.DragEvent<HTMLImageElement>) => {
+      setDragging(true);
+      event.dataTransfer.setDragImage(new Image(), 0, 0);
+    };
+
+    const handleDrag = (event: React.DragEvent<HTMLImageElement>) => {
+      setPosition({ x: event.clientX, y: event.clientY });
+    };
+
+    const handleDragEnd = () => {
+      setDragging(false);
+    };
 
     const handleImageLoad = () => {
       setImageLoaded(true);
@@ -247,14 +273,24 @@ const NewAlignment: FC<AlignmentProps> = (AlignmentProps) => {
             alignItems: "center",
             justifyContent: "center",
             position: "relative",
+            overflow: "hidden",
           }}
         >
-          <img id={`img-${sliceIndex}`} ref={imgRef} src={slices[sliceIndex].image.src} style={{ width: "100%", height: "100%", objectFit: "contain" }}
+          <img id={`img-${sliceIndex}`} ref={imgRef} src={slices[sliceIndex].image.src}
+            style={{
+              width: "100%", height: "100%", objectFit: "contain", transform: `scale(${zoom})`,
+              position: dragging ? 'absolute' : 'static', left: position.x, top: position.y,
+            }}
             alt='something must went wrong...'
             onLoad={handleImageLoad}
             onClick={(e) => {
               handleClick(e, sliceIndex);
-            }} />
+            }}
+            draggable={true}
+            onDragStart={handleDragStart}
+            onDrag={handleDrag}
+            onDragEnd={handleDragEnd}
+          />
           {imageLoaded && RenderPoints(imgRef, sliceIndex)}
         </Paper>
         <Stack
@@ -315,7 +351,7 @@ const NewAlignment: FC<AlignmentProps> = (AlignmentProps) => {
         <img
           id={`preview-${index}`}
           src={slices[leftSliceIndex].image.src}
-          style={{ width: "100%", height: "100%", objectFit: "contain", position: "absolute", opacity: opacity }}
+          style={{ width: "100%", height: "100%", objectFit: "contain", position: "absolute", opacity: 1 - opacity }}
           alt="something must went wrong..."
         />
         <img
@@ -323,7 +359,7 @@ const NewAlignment: FC<AlignmentProps> = (AlignmentProps) => {
           src={slices[rightSliceIndex].image.src}
           ref={previewRef}
           style={{
-            width: "100%", height: "100%", objectFit: "contain", position: "absolute", opacity: 1 - opacity,
+            width: "100%", height: "100%", objectFit: "contain", position: "absolute", opacity: opacity,
             transform: `translate(${transform.x}px, ${transform.y}px) rotate(${transform.rotation}deg)`,
           }}
           alt="something must went wrong..."
@@ -340,11 +376,7 @@ const NewAlignment: FC<AlignmentProps> = (AlignmentProps) => {
         }}>Remove Selected</Button>
       <Button fullWidth variant="contained" color="error" size="small" style={{ textTransform: 'none', whiteSpace: 'nowrap' }} startIcon={<DeleteIcon />}
         onClick={e => {
-          const newSlices = [...slices]
-          newSlices.forEach((s) => { s.points = []; });
-          setSlices(newSlices);
-          setRowSelectionModel([]);
-          setColors([]);
+          removeAllPoints();
         }}>Remove All</Button>
     </Stack>
   );
@@ -364,6 +396,9 @@ const NewAlignment: FC<AlignmentProps> = (AlignmentProps) => {
         <ToggleButton value={Mode.remove}>
           <DeleteIcon />
         </ToggleButton>
+        <ToggleButton value={Mode.move}>
+          <OpenWithIcon />
+        </ToggleButton>
         <ToggleButton value={Mode.off}>
           <DoNotTouchIcon />
         </ToggleButton>
@@ -373,21 +408,19 @@ const NewAlignment: FC<AlignmentProps> = (AlignmentProps) => {
 
   const opacitySlider = (
     <Box sx={{ width: '300px' }}>
-      <Slider size="small" aria-label="Volume" value={opacity} min={0.0} max={1.0} step={0.01} valueLabelDisplay="auto" onChange={(e, val) => setOpacity(val as number)} style={{ width: '300px' }} />
-      <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
-        <Typography
-          variant="body2"
-          sx={{ cursor: 'pointer' }}
-        >
-          Left
-        </Typography>
-        <Typography
-          variant="body2"
-          sx={{ cursor: 'pointer' }}
-        >
-          Right
-        </Typography>
-      </Box>
+      <Typography id="opacity-slider" gutterBottom>
+        Preview Opacity
+      </Typography>
+      <Slider value={opacity} min={0.0} max={1.0} step={0.01} valueLabelDisplay="auto" onChange={(e, val) => setOpacity(val as number)} style={{ width: "inherit" }} />
+    </Box>
+  );
+
+  const zoomSlider = (
+    <Box sx={{ width: '300px' }}>
+      <Typography id="zoom-slider" gutterBottom>
+        Zoom
+      </Typography>
+      <Slider value={zoom} min={1.0} max={5.0} step={0.1} valueLabelDisplay="auto" onChange={(e, val) => setZoom(val as number)} style={{ width: "inherit" }} />
     </Box>
   );
 
@@ -418,76 +451,96 @@ const NewAlignment: FC<AlignmentProps> = (AlignmentProps) => {
     };
   });
 
+  const debugTable = (
+    <DataGrid
+      rows={rows}
+      columns={columns}
+      initialState={{
+        pagination: {
+          paginationModel: { page: 0, pageSize: 10 },
+        },
+      }}
+      pageSizeOptions={[10, 25, 50, 100]}
+      checkboxSelection
+      rowSelectionModel={rowSelectionModel}
+      onRowSelectionModelChange={(newSelection) => { setRowSelectionModel(newSelection); }}
+      slots={{ noRowsOverlay: CustomNoRowsOverlay }}
+      sx={{ height: 600 }}
+    />
+  );
+
   const controlPanel = (
-    <Box>
-      <Paper
-        elevation={9}
-        sx={{
-          height: "100%",
-          width: "100%",
-          display: "flex",
-          alignItems: "flex-start",
-          justifyContent: "center",
-        }}
-      >
-        <Grid container spacing={2}>
-          <Grid item container xs={12}>
-            <Stack spacing={1} direction="row" style={{ padding: "15px", width: "100%", flex: "1 1 auto" }}>
-              {modeSelection}
-              <div style={{ width: "100%", flex: "1 1 auto" }} />
-              {opacitySlider}
-              <div style={{ width: "100%", flex: "1 1 auto" }} />
-              {buttons}
-            </Stack>
-          </Grid>
-          <Grid item container xs={12}>
-            <Box sx={{ width: '100%' }}>
-              <TabContext value={tabValue}>
-                <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
-                  <Tabs value={tabValue} onChange={handleChange} aria-label="basic tabs example">
-                    <Tab label="Preview" value="1" />
-                    <Tab label="Debug" value="2" />
-                  </Tabs>
-                </Box>
-                <TabPanel value="1">
-                  {RenderPreview()}
-                </TabPanel>
-                <TabPanel value="2">
-                  <DataGrid
-                    rows={rows}
-                    columns={columns}
-                    initialState={{
-                      pagination: {
-                        paginationModel: { page: 0, pageSize: 10 },
-                      },
-                    }}
-                    pageSizeOptions={[10, 25, 50, 100]}
-                    checkboxSelection
-                    rowSelectionModel={rowSelectionModel}
-                    onRowSelectionModelChange={(newSelection) => { setRowSelectionModel(newSelection); }}
-                    slots={{ noRowsOverlay: CustomNoRowsOverlay }}
-                    sx={{ height: 600 }}
-                  />
-                </TabPanel>
-              </TabContext>
-            </Box>
-          </Grid>
-        </Grid>
-      </Paper>
+    <Box sx={{ overflow: 'auto' }}>
+      <Grid item container xs={12}>
+        <Stack spacing={1} direction="row" justifyContent="center" alignItems="center" style={{ padding: "15px", width: "100%", flex: "1 1 auto" }}>
+          {modeSelection}
+          <div style={{ width: "100%", flex: "1 1 auto" }} />
+          {buttons}
+        </Stack>
+        <Stack spacing={1} direction="column" justifyContent="center" alignItems="left" style={{ padding: "15px", width: "100%", flex: "1 1 auto" }}>
+          {opacitySlider}
+          {zoomSlider}
+        </Stack>
+      </Grid>
     </Box>
+  );
+
+  const previewPanel = (
+    <Box>
+      <Grid item container xs={12}>
+        <Box sx={{ width: '100%' }}>
+          <TabContext value={tabValue}>
+            <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
+              <Tabs value={tabValue} onChange={handleChange} aria-label="basic tabs example">
+                <Tab label="Preview" value="1" />
+                <Tab label="Debug" value="2" />
+              </Tabs>
+            </Box>
+            <TabPanel value="1">
+              {RenderPreview()}
+            </TabPanel>
+            <TabPanel value="2">
+              {debugTable}
+            </TabPanel>
+          </TabContext>
+        </Box>
+      </Grid>
+    </Box>
+  )
+
+  const fab = (
+    <Fab color="primary" aria-label="add" sx={{ position: 'absolute', bottom: 16, right: 16 }} onClick={removeAllPoints}>
+      <DeleteIcon />
+    </Fab>
   );
 
   return (
     <Grid item container xs={12} spacing={2}>
-      <Grid item xs={3}>
+      {/* <Grid item xs={3}>
         {RenderImg(leftSliceIndex, Direction.left)}
-      </Grid>
-      <Grid item xs={6}>
-        {controlPanel}
       </Grid>
       <Grid item xs={3}>
         {RenderImg(rightSliceIndex, Direction.right)}
       </Grid>
+      <Grid item xs={6}>
+        {controlPanel}
+      </Grid> */}
+
+      <Grid item container xs={6} spacing={2}>
+        <Grid item xs={6}>
+          {RenderImg(leftSliceIndex, Direction.left)}
+        </Grid>
+        <Grid item xs={6}>
+          {RenderImg(rightSliceIndex, Direction.right)}
+        </Grid>
+        <Grid item xs={12}>
+          {controlPanel}
+        </Grid>
+      </Grid>
+      <Grid item container xs={6}>
+        {previewPanel}
+      </Grid>
+      {fab}
     </Grid>
   );
 }
