@@ -163,25 +163,6 @@ const NewAlignment: FC<AlignmentProps> = (AlignmentProps) => {
     setColors([]);
   };
 
-  const handleClick = (event: React.MouseEvent<HTMLImageElement>, sliceIndex: number) => {
-    if (mode === Mode.add) {
-      setColors([...colors, generateDistinctColor(colors)]);
-      const img = event.currentTarget;
-      const rect = img.getBoundingClientRect();
-      const widthScale = img.clientWidth / img.naturalWidth;
-      const heightScale = img.clientHeight / img.naturalHeight;
-      const x = (event.clientX - rect.left) / widthScale;
-      const y = (event.clientY - rect.top) / heightScale;
-      const newSlices = [...slices];
-      newSlices.forEach((s, i) => {
-        s.points.push({ x: x, y: y });
-      });
-      setSlices(newSlices);
-    } else if (mode === Mode.remove) {
-
-    }
-  };
-
   const RenderPoints = (imgRef: React.RefObject<HTMLImageElement>, sliceIndex: number) => {
     const rect = imgRef.current?.getBoundingClientRect();
     const width = imgRef.current?.naturalWidth ?? 1;
@@ -191,7 +172,7 @@ const NewAlignment: FC<AlignmentProps> = (AlignmentProps) => {
 
     return slices[sliceIndex].points.map((p, i) =>
     (<div key={`image-${sliceIndex}-point-${i}`} id={`image-${sliceIndex}-point-${i}`}
-      style={{ position: "absolute", left: `${p.x / width * 100}%`, top: `${p.y / height * 100}%`, width: "10px", height: "10px", borderRadius: "50%", transform: "translate(-50%, -50%)", backgroundColor: `${colors[i]}`, border: "1px solid white" }}
+      style={{ position: "absolute", left: `${p.x / width * 100}%`, top: `${p.y / height * 100}%`, width: `${10/zoom}px`, height: `${10/zoom}px`, borderRadius: "50%", transform: "translate(-50%, -50%)", backgroundColor: `${colors[i]}`, border: `${1/zoom}px solid white` }}
       onClick={e => {
         if (mode === Mode.add) {
           if (!rowSelectionModel.includes(i + 1)) {
@@ -217,7 +198,7 @@ const NewAlignment: FC<AlignmentProps> = (AlignmentProps) => {
           setColors(newColors);
         }
       }}
-      draggable={true}
+      draggable={mode === Mode.add}
       onDragStart={e => {
         e.dataTransfer.effectAllowed = 'move';
       }}
@@ -239,6 +220,7 @@ const NewAlignment: FC<AlignmentProps> = (AlignmentProps) => {
   };
 
   const RenderImg = (sliceIndex: number, location: Direction) => {
+    const divRef = React.useRef<HTMLDivElement>(null);
     const imgRef = React.useRef<HTMLImageElement>(null);
     const [imageLoaded, setImageLoaded] = React.useState(false);
     const [dragging, setDragging] = React.useState(false);
@@ -260,37 +242,56 @@ const NewAlignment: FC<AlignmentProps> = (AlignmentProps) => {
             overflow: "hidden",
           }}
         >
-          <img id={`img-${sliceIndex}`} ref={imgRef} src={slices[sliceIndex].image.src}
+          <div id={`div-${sliceIndex}`} ref={divRef}
             style={{
               width: "100%", height: "100%", objectFit: "contain", transform: `scale(${zoom})`,
               position: 'relative', left: position.x, top: position.y,
             }}
-            alt='something must went wrong...'
-            onLoad={() => {
-              setImageLoaded(true);
-            }}
-            onClick={(e) => {
-              handleClick(e, sliceIndex);
+            onClick={(event: React.MouseEvent<HTMLDivElement>) => {
+              if (mode === Mode.add) {
+                setColors([...colors, generateDistinctColor(colors)]);
+                const div = event.currentTarget;
+                const img = event.currentTarget.firstChild as HTMLImageElement;
+                const rect = img.getBoundingClientRect();
+                const widthScale = img.clientWidth / img.naturalWidth;
+                const heightScale = img.clientHeight / img.naturalHeight;
+                const x = (event.clientX - rect.left) / widthScale;
+                const y = (event.clientY - rect.top) / heightScale;
+                const newSlices = [...slices];
+                newSlices.forEach((s, i) => {
+                  s.points.push({ x: x, y: y });
+                });
+                setSlices(newSlices);
+              } else if (mode === Mode.remove) {
+
+              }
             }}
             draggable={true}
-            onDragStart={(event: React.DragEvent<HTMLImageElement>) => {
+            onDragStart={(event: React.DragEvent<HTMLDivElement>) => {
+              if (mode !== Mode.move) return;
               event.dataTransfer.effectAllowed = 'move';
               setDragging(true);
               setCurser({ x: event.clientX, y: event.clientY });
             }}
             onDragOver={e => { e.preventDefault(); }}
-            onDrag={(event: React.DragEvent<HTMLImageElement>) => {
+            onDrag={(event: React.DragEvent<HTMLDivElement>) => {
               event.preventDefault();
               if (!dragging) return;
               const oldCurser = curser;
               setCurser({ x: event.clientX, y: event.clientY });
-              setPosition({ x: (imgRef.current?.offsetLeft ?? 0) - (oldCurser.x - event.clientX), y: (imgRef.current?.offsetTop ?? 0) - (oldCurser.y - event.clientY) });
+              setPosition({ x: (divRef.current?.offsetLeft ?? 0) - (oldCurser.x - event.clientX), y: (divRef.current?.offsetTop ?? 0) - (oldCurser.y - event.clientY) });
             }}
             onDragEnd={() => {
               setDragging(false);
             }}
-          />
-          {imageLoaded && RenderPoints(imgRef, sliceIndex)}
+          >
+            <img id={`img-${sliceIndex}`} ref={imgRef} src={slices[sliceIndex].image.src}
+              style={{ width: "100%", height: "100%", objectFit: "contain", position: 'relative' }}
+              alt='something must went wrong...'
+              onLoad={() => { setImageLoaded(true); }}
+            />
+            {imageLoaded && RenderPoints(imgRef, sliceIndex)}
+          </div>
         </Paper>
         <Stack
           direction="row"
@@ -304,7 +305,6 @@ const NewAlignment: FC<AlignmentProps> = (AlignmentProps) => {
               value={location === Direction.left ? leftSliceIndex : rightSliceIndex}
               onChange={e => { location === Direction.left ? setLeftSliceIndex(Number(e.target.value)) : setRightSliceIndex(Number(e.target.value)) }}
               autoWidth
-              label="Age"
               disabled={!allowMixMatch}
               sx={{ minWidth: 200 }}
               MenuProps={{
