@@ -243,23 +243,7 @@ const NewAlignment: FC<AlignmentProps> = (AlignmentProps) => {
     const [imageLoaded, setImageLoaded] = React.useState(false);
     const [dragging, setDragging] = React.useState(false);
     const [position, setPosition] = React.useState({ x: 0, y: 0 });
-
-    const handleDragStart = (event: React.DragEvent<HTMLImageElement>) => {
-      setDragging(true);
-      event.dataTransfer.setDragImage(new Image(), 0, 0);
-    };
-
-    const handleDrag = (event: React.DragEvent<HTMLImageElement>) => {
-      setPosition({ x: event.clientX, y: event.clientY });
-    };
-
-    const handleDragEnd = () => {
-      setDragging(false);
-    };
-
-    const handleImageLoad = () => {
-      setImageLoaded(true);
-    };
+    const [curser, setCurser] = React.useState({ x: 0, y: 0 });
 
     return (
       <Box>
@@ -279,17 +263,32 @@ const NewAlignment: FC<AlignmentProps> = (AlignmentProps) => {
           <img id={`img-${sliceIndex}`} ref={imgRef} src={slices[sliceIndex].image.src}
             style={{
               width: "100%", height: "100%", objectFit: "contain", transform: `scale(${zoom})`,
-              position: dragging ? 'absolute' : 'static', left: position.x, top: position.y,
+              position: 'relative', left: position.x, top: position.y,
             }}
             alt='something must went wrong...'
-            onLoad={handleImageLoad}
+            onLoad={() => {
+              setImageLoaded(true);
+            }}
             onClick={(e) => {
               handleClick(e, sliceIndex);
             }}
             draggable={true}
-            onDragStart={handleDragStart}
-            onDrag={handleDrag}
-            onDragEnd={handleDragEnd}
+            onDragStart={(event: React.DragEvent<HTMLImageElement>) => {
+              event.dataTransfer.effectAllowed = 'move';
+              setDragging(true);
+              setCurser({ x: event.clientX, y: event.clientY });
+            }}
+            onDragOver={e => { e.preventDefault(); }}
+            onDrag={(event: React.DragEvent<HTMLImageElement>) => {
+              event.preventDefault();
+              if (!dragging) return;
+              const oldCurser = curser;
+              setCurser({ x: event.clientX, y: event.clientY });
+              setPosition({ x: (imgRef.current?.offsetLeft ?? 0) - (oldCurser.x - event.clientX), y: (imgRef.current?.offsetTop ?? 0) - (oldCurser.y - event.clientY) });
+            }}
+            onDragEnd={() => {
+              setDragging(false);
+            }}
           />
           {imageLoaded && RenderPoints(imgRef, sliceIndex)}
         </Paper>
@@ -516,16 +515,6 @@ const NewAlignment: FC<AlignmentProps> = (AlignmentProps) => {
 
   return (
     <Grid item container xs={12} spacing={2}>
-      {/* <Grid item xs={3}>
-        {RenderImg(leftSliceIndex, Direction.left)}
-      </Grid>
-      <Grid item xs={3}>
-        {RenderImg(rightSliceIndex, Direction.right)}
-      </Grid>
-      <Grid item xs={6}>
-        {controlPanel}
-      </Grid> */}
-
       <Grid item container xs={6} spacing={2}>
         <Grid item xs={6}>
           {RenderImg(leftSliceIndex, Direction.left)}

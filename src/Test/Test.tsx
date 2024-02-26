@@ -15,10 +15,9 @@ const Test: FC<TestProps> = (TestProps) => {
   const [zoom, setZoom] = React.useState(1);
 
   const handleDragStart = (event: React.DragEvent<HTMLImageElement>) => {
-    event.preventDefault();
+    event.dataTransfer.effectAllowed = 'move';
     setDragging(true);
     setCurser({ x: event.clientX, y: event.clientY });
-    console.log('drag start');
   };
 
   const handleDrag = (event: React.DragEvent<HTMLImageElement>) => {
@@ -26,13 +25,11 @@ const Test: FC<TestProps> = (TestProps) => {
     if (!dragging) return;
     const oldCurser = curser;
     setCurser({ x: event.clientX, y: event.clientY });
-    setPosition({ x: (imgRef.current?.offsetLeft ?? 0) - (oldCurser.x - event.clientX) , y: (imgRef.current?.offsetTop ?? 0) - (oldCurser.y - event.clientY)});
-    console.log(position);
+    setPosition({ x: (imgRef.current?.offsetLeft ?? 0) - (oldCurser.x - event.clientX), y: (imgRef.current?.offsetTop ?? 0) - (oldCurser.y - event.clientY) });
   };
 
   const handleDragEnd = () => {
     setDragging(false);
-    console.log('drag end');
   };
 
   return (
@@ -55,9 +52,13 @@ const Test: FC<TestProps> = (TestProps) => {
             position: 'absolute', left: position.x, top: position.y,
           }}
           draggable={true}
-          onMouseDown={handleDragStart}
-          onMouseMove={handleDrag}
-          onMouseUp={handleDragEnd}
+          // onMouseDown={handleDragStart}
+          // onMouseMove={handleDrag}
+          // onMouseUp={handleDragEnd}
+          onDragStart={handleDragStart}
+          onDragOver={e => { e.preventDefault(); }}
+          onDrag={handleDrag}
+          onDragEnd={handleDragEnd}
         />
       </Paper>
 
