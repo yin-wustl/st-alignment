@@ -9,6 +9,7 @@ import Menu from './Menu/Menu.lazy';
 import NewAlignment from './NewAlignment/NewAlignment.lazy';
 import Compute from './Compute/Compute.lazy';
 import Preview from './Preview/Preview.lazy';
+import Test from './Test/Test.lazy';
 
 export type Point = {
   x: number,
@@ -57,6 +58,7 @@ const App = () => {
           {/* {alignmentPaths.map((path, i) => (
             <Route key={i} path={`/preview-${path}`} element={<Preview index={i} slices={slices}/>}/>
           ))} */}
+          <Route path="/test" element={<Test slices={slices} />} />
         </Route>
       </Routes>
     </BrowserRouter>

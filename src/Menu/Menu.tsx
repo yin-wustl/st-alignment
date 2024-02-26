@@ -21,12 +21,14 @@ import HomeIcon from '@mui/icons-material/Home';
 import HelpIcon from '@mui/icons-material/Help';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import DeleteIcon from '@mui/icons-material/Delete';
+import ScienceIcon from '@mui/icons-material/Science';
 import AdsClickIcon from '@mui/icons-material/AdsClick';
 import TuneIcon from '@mui/icons-material/Tune';
 import CalculateIcon from '@mui/icons-material/Calculate';
 import PreviewIcon from '@mui/icons-material/Preview';
 
 import { MenuProps } from './Menu.lazy';
+import Science from '@mui/icons-material/Science';
 
 const drawerWidth = 240;
 
@@ -103,6 +105,7 @@ const Menu: FC<MenuProps> = (MenuProps) => {
   const theme = useTheme();
   const slices = MenuProps.slices;
   const computed = MenuProps.computed;
+  const isDevelopment = process.env.NODE_ENV !== 'production';
   const [open, setOpen] = React.useState(false);
   const [title, setTitle] = React.useState('Home');
 
@@ -116,6 +119,7 @@ const Menu: FC<MenuProps> = (MenuProps) => {
 
   const navigation = useNavigate();
   const handleNavigation = (path: string) => { navigation(path); }
+
 
   return (
     <Box sx={{ display: 'flex' }}>
@@ -201,7 +205,7 @@ const Menu: FC<MenuProps> = (MenuProps) => {
               </ListItem>
             );
           })} */}
-        {/* </List>
+          {/* </List>
         <Divider />
         <List> */}
           <ListItem key="compute" disablePadding sx={{ display: 'block' }} onClick={e => { setTitle("Compute"); handleNavigation("/compute"); }}>
@@ -212,6 +216,16 @@ const Menu: FC<MenuProps> = (MenuProps) => {
               <ListItemText primary="Compute" />
             </ListItemButton>
           </ListItem>
+          {isDevelopment && (
+            <ListItem key="test" disablePadding sx={{ display: 'block' }} onClick={e => { setTitle("Test"); handleNavigation("/test"); }}>
+              <ListItemButton sx={{ minHeight: 48, px: 2.5 }} >
+                <ListItemIcon sx={{ minWidth: 0, mr: 3 }}>
+                  <ScienceIcon />
+                </ListItemIcon>
+                <ListItemText primary="Test" />
+              </ListItemButton>
+            </ListItem>
+          )}
           {/* {[...new Array(Math.max(slices.length - 1, 0))].map((s, i) => {
             const title = "Preview " + String(i + 1) + " and " + String(i + 2);
             const longTitle = "Preview " + slices[i].name + " and " + slices[i + 1].name;
