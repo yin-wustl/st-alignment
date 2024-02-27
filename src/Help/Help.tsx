@@ -1,26 +1,21 @@
 import React, { FC } from 'react';
-import { marked } from 'marked';
-import * as fs from "fs/promises";
+import ReactMarkdown from 'react-markdown';
+import { HelpProps } from './Help.lazy';
 
-interface HelpProps { }
 
-const Help: FC<HelpProps> = () => {
-  // FIXME: This is not working
-  const [rendered, setRendered] = React.useState<string>('');
+const Help: FC<HelpProps> = (HelpProps) => {
+  const [markdown, setMarkdown] = React.useState('');
+  const text = require('./help.md');
 
   React.useEffect(() => {
-    fetch('./help.md')
+    fetch(text)
       .then(response => response.text())
-      .then(async text => {
-        const renderedText = marked(text);
-        setRendered(await Promise.resolve(renderedText));
-      });
+      .then(text => setMarkdown(text));
   }, []);
 
   return (
     <div>
-      Help is on the way...
-      {/* {rendered} */}
+      <ReactMarkdown children={markdown} />
     </div>
   );
 }

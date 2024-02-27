@@ -23,6 +23,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import DoNotTouchIcon from '@mui/icons-material/DoNotTouch';
 import TouchAppIcon from '@mui/icons-material/TouchApp';
 import OpenWithIcon from '@mui/icons-material/OpenWith';
+import RestoreIcon from '@mui/icons-material/Restore';
 import { DataGrid, GridColDef, GridValueGetterParams, GridRenderCellParams, GridRowSelectionModel, GridValueFormatterParams } from '@mui/x-data-grid';
 import { Matrix, SVD, determinant } from 'ml-matrix';
 
@@ -104,6 +105,7 @@ const NewAlignment: FC<AlignmentProps> = (AlignmentProps) => {
   const colors = AlignmentProps.colors;
   const setColors = AlignmentProps.setColors;
   const allowMixMatch = AlignmentProps.allowMixMatch;
+  const isDevelopment = process.env.NODE_ENV !== 'production';
 
   const [leftSliceIndex, setLeftSliceIndex] = React.useState<number>(index);
   const [rightSliceIndex, setRightSliceIndex] = React.useState<number>(index + 1);
@@ -122,11 +124,15 @@ const NewAlignment: FC<AlignmentProps> = (AlignmentProps) => {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Shift') {
         setMode(Mode.remove);
+      } else if (event.key === 'Option' || event.key === 'Control') {
+        setMode(Mode.move);
       }
     };
 
     const handleKeyUp = (event: KeyboardEvent) => {
       if (event.key === 'Shift') {
+        setMode(Mode.add);
+      } else if (event.key === 'Option' || event.key === 'Control') {
         setMode(Mode.add);
       }
     };
@@ -172,7 +178,7 @@ const NewAlignment: FC<AlignmentProps> = (AlignmentProps) => {
 
     return slices[sliceIndex].points.map((p, i) =>
     (<div key={`image-${sliceIndex}-point-${i}`} id={`image-${sliceIndex}-point-${i}`}
-      style={{ position: "absolute", left: `${p.x / width * 100}%`, top: `${p.y / height * 100}%`, width: `${10/zoom}px`, height: `${10/zoom}px`, borderRadius: "50%", transform: "translate(-50%, -50%)", backgroundColor: `${colors[i]}`, border: `${1/zoom}px solid white` }}
+      style={{ position: "absolute", left: `${p.x / width * 100}%`, top: `${p.y / height * 100}%`, width: `${10 / zoom}px`, height: `${10 / zoom}px`, borderRadius: "50%", transform: "translate(-50%, -50%)", backgroundColor: `${colors[i]}`, border: `${1 / zoom}px solid white` }}
       onClick={e => {
         if (mode === Mode.add) {
           if (!rowSelectionModel.includes(i + 1)) {
@@ -207,8 +213,8 @@ const NewAlignment: FC<AlignmentProps> = (AlignmentProps) => {
       }}
       onDrag={e => {
         e.preventDefault();
-        const x = (e.clientX - (rect?.left ?? 0)) / (widthOnScreen / width);
-        const y = (e.clientY - (rect?.top ?? 0)) / (heightOnScreen / height);
+        const x = (e.clientX - (rect?.left ?? 0)) / (zoom * widthOnScreen / width);
+        const y = (e.clientY - (rect?.top ?? 0)) / (zoom * heightOnScreen / height);
         const newPoints = [...slices[sliceIndex].points];
         newPoints[i] = { x: x, y: y };
         const newSlices = [...slices];
@@ -226,6 +232,13 @@ const NewAlignment: FC<AlignmentProps> = (AlignmentProps) => {
     const [dragging, setDragging] = React.useState(false);
     const [position, setPosition] = React.useState({ x: 0, y: 0 });
     const [curser, setCurser] = React.useState({ x: 0, y: 0 });
+
+    // React.useImperativeHandle(ref, () => ({
+    //   reset: () => {
+    //     setPosition({ x: 0, y: 0 });
+    //     setCurser({ x: 0, y: 0 });
+    //   },
+    // }));
 
     return (
       <Box>
@@ -369,6 +382,10 @@ const NewAlignment: FC<AlignmentProps> = (AlignmentProps) => {
 
   const buttons = (
     <Stack spacing={1} direction="row" style={{ padding: "15px", width: "100%", flex: "1 1 auto" }}>
+      <Button fullWidth variant="contained" color="primary" size="small" style={{ textTransform: 'none', whiteSpace: 'nowrap' }} startIcon={<RestoreIcon />}
+        onClick={e => {
+          setZoom(1);
+        }}>Reset Zoom</Button>
       <Button fullWidth variant="contained" color="warning" size="small" style={{ textTransform: 'none', whiteSpace: 'nowrap' }} startIcon={<RemoveIcon />}
         onClick={e => {
           removePoints();
@@ -474,7 +491,7 @@ const NewAlignment: FC<AlignmentProps> = (AlignmentProps) => {
         <Stack spacing={1} direction="row" justifyContent="center" alignItems="center" style={{ padding: "15px", width: "100%", flex: "1 1 auto" }}>
           {modeSelection}
           <div style={{ width: "100%", flex: "1 1 auto" }} />
-          {buttons}
+          {isDevelopment && buttons}
         </Stack>
         <Stack spacing={1} direction="column" justifyContent="center" alignItems="left" style={{ padding: "15px", width: "100%", flex: "1 1 auto" }}>
           {opacitySlider}
