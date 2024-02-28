@@ -170,6 +170,9 @@ const Menu: FC<MenuProps> = (MenuProps) => {
               <ListItemText primary="Help" />
             </ListItemButton>
           </ListItem>
+        </List>
+        <Divider />
+        <List>
           <ListItem key="upload" disablePadding sx={{ display: 'block' }} onClick={e => { setTitle("Upload"); handleNavigation("/import"); }}>
             <ListItemButton sx={{ minHeight: 48, px: 2.5 }} >
               <ListItemIcon sx={{ minWidth: 0, mr: 3 }}>
@@ -178,9 +181,6 @@ const Menu: FC<MenuProps> = (MenuProps) => {
               <ListItemText primary="Load Images" />
             </ListItemButton>
           </ListItem>
-        </List>
-        <Divider />
-        <List>
           {slices.length ? (
             <ListItem key={0} disablePadding sx={{ display: 'block' }} onClick={e => { setTitle("Alignment"); handleNavigation("/alignment"); }}>
               <ListItemButton sx={{ minHeight: 48, px: 2.5 }} >

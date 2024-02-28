@@ -139,10 +139,12 @@ const NewAlignment: FC<AlignmentProps> = (AlignmentProps) => {
 
     window.addEventListener('keydown', handleKeyDown);
     window.addEventListener('keyup', handleKeyUp);
+    // document.body.style.overflow = 'hidden';
 
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
       window.removeEventListener('keyup', handleKeyUp);
+      document.body.style.overflow = 'unset';
     };
   }, []);
 
@@ -169,16 +171,20 @@ const NewAlignment: FC<AlignmentProps> = (AlignmentProps) => {
     setColors([]);
   };
 
-  const RenderPoints = (imgRef: React.RefObject<HTMLImageElement>, sliceIndex: number) => {
+  const RenderPoints = (divRef: React.RefObject<HTMLDivElement>, imgRef: React.RefObject<HTMLImageElement>, sliceIndex: number) => {
     const rect = imgRef.current?.getBoundingClientRect();
     const width = imgRef.current?.naturalWidth ?? 1;
     const height = imgRef.current?.naturalHeight ?? 1;
     const widthOnScreen = imgRef.current?.clientWidth ?? 1;
     const heightOnScreen = imgRef.current?.clientHeight ?? 1;
+    const divWidth = divRef.current?.clientWidth ?? 1;
+    const divHeight = divRef.current?.clientHeight ?? 1;
+    const widthRatio = widthOnScreen / divWidth;
+    const heightRatio = heightOnScreen / divHeight;
 
     return slices[sliceIndex].points.map((p, i) =>
     (<div key={`image-${sliceIndex}-point-${i}`} id={`image-${sliceIndex}-point-${i}`}
-      style={{ position: "absolute", left: `${p.x / width * 100}%`, top: `${p.y / height * 100}%`, width: `${10 / zoom}px`, height: `${10 / zoom}px`, borderRadius: "50%", transform: "translate(-50%, -50%)", backgroundColor: `${colors[i]}`, border: `${1 / zoom}px solid white` }}
+      style={{ position: "absolute", left: `${p.x / width * 100 * widthRatio}%`, top: `${p.y / height * 100 * heightRatio}%`, width: `${10 / zoom}px`, height: `${10 / zoom}px`, borderRadius: "50%", transform: "translate(-50%, -50%)", backgroundColor: `${colors[i]}`, border: `${1 / zoom}px solid white` }}
       onClick={e => {
         if (mode === Mode.add) {
           if (!rowSelectionModel.includes(i + 1)) {
@@ -233,6 +239,7 @@ const NewAlignment: FC<AlignmentProps> = (AlignmentProps) => {
     const [position, setPosition] = React.useState({ x: 0, y: 0 });
     const [curser, setCurser] = React.useState({ x: 0, y: 0 });
 
+    // TODO: try useImperativeHandle instead of event listener
     // React.useImperativeHandle(ref, () => ({
     //   reset: () => {
     //     setPosition({ x: 0, y: 0 });
@@ -240,14 +247,25 @@ const NewAlignment: FC<AlignmentProps> = (AlignmentProps) => {
     //   },
     // }));
 
+    React.useEffect(() => {
+      const button = document.getElementById('reset-zoom');
+      const handleClick = () => {
+        setPosition({ x: 0, y: 0 });
+      };
+      button?.addEventListener('click', handleClick);
+      return () => {
+        button?.removeEventListener('click', handleClick);
+      };
+    }, []);
+
     return (
       <Box>
         <Paper
           elevation={9}
           style={{ marginBottom: "20px" }}
           sx={{
-            height: "100%",
-            width: "100%",
+            height: "fit-content",
+            width: "fit-content",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -257,27 +275,24 @@ const NewAlignment: FC<AlignmentProps> = (AlignmentProps) => {
         >
           <div id={`div-${sliceIndex}`} ref={divRef}
             style={{
-              width: "100%", height: "100%", objectFit: "contain", transform: `scale(${zoom})`,
+              width: "fit-content", height: "fit-content", transform: `scale(${zoom})`,
               position: 'relative', left: position.x, top: position.y,
             }}
             onClick={(event: React.MouseEvent<HTMLDivElement>) => {
-              if (mode === Mode.add) {
-                setColors([...colors, generateDistinctColor(colors)]);
-                const div = event.currentTarget;
-                const img = event.currentTarget.firstChild as HTMLImageElement;
-                const rect = img.getBoundingClientRect();
-                const widthScale = img.clientWidth / img.naturalWidth;
-                const heightScale = img.clientHeight / img.naturalHeight;
-                const x = (event.clientX - rect.left) / widthScale;
-                const y = (event.clientY - rect.top) / heightScale;
-                const newSlices = [...slices];
-                newSlices.forEach((s, i) => {
-                  s.points.push({ x: x, y: y });
-                });
-                setSlices(newSlices);
-              } else if (mode === Mode.remove) {
-
-              }
+              if (mode !== Mode.add) return;
+              setColors([...colors, generateDistinctColor(colors)]);
+              const div = event.currentTarget;
+              const img = event.currentTarget.firstChild as HTMLImageElement;
+              const rect = img.getBoundingClientRect();
+              const widthScale = zoom * img.clientWidth / img.naturalWidth;
+              const heightScale = zoom * img.clientHeight / img.naturalHeight;
+              const x = (event.clientX - rect.left) / widthScale;
+              const y = (event.clientY - rect.top) / heightScale;
+              const newSlices = [...slices];
+              newSlices.forEach((s, i) => {
+                s.points.push({ x: x, y: y });
+              });
+              setSlices(newSlices);
             }}
             draggable={true}
             onDragStart={(event: React.DragEvent<HTMLDivElement>) => {
@@ -297,13 +312,30 @@ const NewAlignment: FC<AlignmentProps> = (AlignmentProps) => {
             onDragEnd={() => {
               setDragging(false);
             }}
+            onWheel={(event: React.WheelEvent<HTMLDivElement>) => {
+              if (mode !== Mode.move) return;
+              const div = event.currentTarget;
+              const img = event.currentTarget.firstChild as HTMLImageElement;
+              const rect = img.getBoundingClientRect();
+
+              // FIXME: zooming is not centered at the curser
+              if (event.deltaY < 0 && zoom < 5) {
+                setZoom(zoom * 1.1);
+                setCurser({ x: event.clientX, y: event.clientY });
+                setPosition({ x: (position.x - curser.x) * 1.1 + curser.x, y: (position.y - curser.y) * 1.1 + curser.y });
+              } else if (event.deltaY > 0 && zoom > 1) {
+                setZoom(zoom / 1.1);
+                setCurser({ x: event.clientX, y: event.clientY });
+                setPosition({ x: (position.x - curser.x) / 1.1 + curser.x, y: (position.y - curser.y) / 1.1 + curser.y });
+              } else { return; }
+            }}
           >
             <img id={`img-${sliceIndex}`} ref={imgRef} src={slices[sliceIndex].image.src}
               style={{ width: "100%", height: "100%", objectFit: "contain", position: 'relative' }}
               alt='something must went wrong...'
               onLoad={() => { setImageLoaded(true); }}
             />
-            {imageLoaded && RenderPoints(imgRef, sliceIndex)}
+            {imageLoaded && RenderPoints(divRef, imgRef, sliceIndex)}
           </div>
         </Paper>
         <Stack
@@ -332,7 +364,7 @@ const NewAlignment: FC<AlignmentProps> = (AlignmentProps) => {
             </Select>
           </FormControl>
         </Stack>
-      </Box >
+      </Box>
     );
   };
 
@@ -382,7 +414,7 @@ const NewAlignment: FC<AlignmentProps> = (AlignmentProps) => {
 
   const buttons = (
     <Stack spacing={1} direction="row" style={{ padding: "15px", width: "100%", flex: "1 1 auto" }}>
-      <Button fullWidth variant="contained" color="primary" size="small" style={{ textTransform: 'none', whiteSpace: 'nowrap' }} startIcon={<RestoreIcon />}
+      <Button id="reset-zoom" fullWidth variant="contained" color="primary" size="small" style={{ textTransform: 'none', whiteSpace: 'nowrap' }} startIcon={<RestoreIcon />}
         onClick={e => {
           setZoom(1);
         }}>Reset Zoom</Button>
