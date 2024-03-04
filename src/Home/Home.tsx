@@ -1,12 +1,23 @@
 import React, { FC } from 'react';
+import ReactMarkdown from 'react-markdown';
 
+import { HomeProps } from './Home.lazy';
 
-interface HomeProps {}
+const Home: FC<HomeProps> = (HomeProps) => {
+  const [markdown, setMarkdown] = React.useState('');
+  const text = require('./readme.md');
 
-const Home: FC<HomeProps> = () => (
-  <div>
-    Eh?
-  </div>
-);
+  React.useEffect(() => {
+    fetch(text)
+      .then(response => response.text())
+      .then(text => setMarkdown(text));
+  }, []);
+
+  return (
+    <div>
+      <ReactMarkdown children={markdown} />
+    </div>
+  );
+};
 
 export default Home;
